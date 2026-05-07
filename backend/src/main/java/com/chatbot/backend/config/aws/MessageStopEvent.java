@@ -11,6 +11,6 @@ public class MessageStopEvent implements StreamEvent {
 
     @Override
     public String getType() {
-        return "messageStop";
+        return "message_complete";
     }
 }
