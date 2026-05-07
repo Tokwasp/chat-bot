@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\mikm7\\\\chatbot\" -Recurse -Depth 3)",
+      "Bash(Select-Object FullName, PSIsContainer)",
+      "Bash(Format-Table -AutoSize)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(curl -s \"https://start.spring.io/starter.zip?type=maven-project&language=java&bootVersion=3.4.5&groupId=com.chatbot&artifactId=backend&name=backend&packageName=com.chatbot.backend&dependencies=web,lombok,data-jpa,h2\" -o /tmp/backend.zip)",
+      "Bash(mkdir -p /mnt/c/Users/mikm7/chatbot/backend)",
+      "Bash(unzip -o /tmp/backend.zip -d /mnt/c/Users/mikm7/chatbot/backend)"
+    ]
+  }
+}

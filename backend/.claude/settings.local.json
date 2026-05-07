@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\mikm7\\\\chatbot\\\\backend\" -Force)",
+      "Bash(Select-Object Name, FullName)",
+      "WebFetch(domain:github.com)",
+      "Bash(Remove-Item *)",
+      "Bash(./gradlew build *)",
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\mikm7\\\\chatbot\\\\.claude\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -Property Name, FullName)",
+      "PowerShell(Get-ChildItem -Path \"C:\\\\Users\\\\mikm7\\\\chatbot\\\\backend\" -Recurse -ErrorAction SilentlyContinue | Select-Object FullName | ForEach-Object { $_.FullName })",
+      "PowerShell(New-Item *)",
+      "WebFetch(domain:raw.githubusercontent.com)"
+    ]
+  }
+}
