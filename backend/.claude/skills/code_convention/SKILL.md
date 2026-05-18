@@ -1,177 +1,160 @@
 ---
-name: code_convention
-description: Java 백엔드 코드를 작성, 수정, 리뷰할 때 사용한다. Optional, Stream, 람다, final, String null 체크, Lombok, 줄바꿈/띄어쓰기 등 백엔드 코딩 컨벤션 규칙을 정의한다. 자바 파일(.java) 작업 시 항상 트리거된다.
+name: code-convention
+description: Java 백엔드 코드를 작성, 수정, 리뷰할 때 사용한다. Lombok, Optional, Stream, 람다, final, Bean Validation, 줄바꿈/띄어쓰기, 조건문 등 백엔드 코딩 컨벤션 규칙을 정의한다. 자바 파일(.java) 작업 시 트리거.
 ---
 
-# Backend 코딩 컨벤션
-
-이 문서는 백엔드 Java 코드 작성/리뷰 시 반드시 따라야 하는 규칙을 정의한다.
-
-## 사용 지침 (Claude Code용)
-
-**Java 코드를 작성, 수정, 리뷰하기 전에 반드시 다음을 수행한다:**
-
-1. 이 문서(`.claude/skills/code_convention/SKILL.md`)의 모든 규칙을 숙지한다.
-2. **Read 도구를 사용해 다음 파일을 읽고 구체적인 예시를 함께 참고한다:**
-   - `.claude/skills/code_convention/reference/Reference.md`
-3. 규칙 위반 여부를 판단할 때 위 레퍼런스 파일의 예시 코드를 기준으로 삼는다.
-
-### 작성 규칙
-
-- **수정 내용**과 **수정 이유**는 항목 순서를 동일하게 맞춘다 (1번 항목끼리, 2번 항목끼리 대응).
-- 수정 이유에는 반드시 **컨벤션의 섹션 번호와 이름**을 명시한다. (예: "3. Optional - .get() 호출 규칙")
-- 단순 코드 작성(신규)인 경우 "수정 내용"은 "신규 작성"으로, "수정 이유"는 적용된 컨벤션 항목들을 나열한다.
-- 컨벤션과 무관한 변경(비즈니스 로직 수정 등)은 이 목록에 포함하지 않는다.
-
-### 예시
-
-````markdown
-## 📋 적용한 컨벤션
-
-### 수정 내용
-- `user.getName() != null && !user.getName().isEmpty()` → `StringUtils.hasText(user.getName())`로 변경
-- Stream의 `.filter().map().collect()`를 메서드 단위로 줄바꿈
-- 람다 `item -> item.getPrice()`를 메서드 레퍼런스 `Item::getPrice`로 변경
-
-### 수정 이유
-- `6. String null / 빈 문자열 체크` — `str != null` 직접 비교 금지, `StringUtils.hasText()` 사용
-- `8. 줄바꿈 / 띄어쓰기 규칙 - Stream` — 3개 이상 메서드 체이닝은 줄바꿈
-- `7. 람다 표현식 - 메서드 레퍼런스 우선 사용` — 단순 메서드 호출은 `::`로 대체
-````
-
----
+> 구체적인 코드 예시는 같은 디렉터리의 [`reference.md`](./reference.md)에 정리되어 있다.
+> 규칙만으로 판단이 모호하면 `reference.md`를 열어 해당 섹션 번호를 찾아본다.
 
 ## 1. Java 버전
 
-Java 11 이하 문법만 사용한다.
+Java 16+ 문법을 사용한다. 단, 아래 문법은 사용하지 않는다.
 
-- `record` 사용 금지 (Java 14+)
-- `sealed class` 사용 금지 (Java 17+)
-- `switch` 표현식 사용 금지 (Java 14+)
-- `text block` 사용 금지 (Java 15+)
+- `record` 사용 금지 (불변 DTO도 `@Getter` + `@Builder` 클래스로 작성)
+- `sealed class` 사용 금지
+- `switch` 표현식 사용 금지 (전통 `switch` 문은 허용)
+- `text block`(`"""..."""`) 사용 금지
+
+Stream의 종료 연산은 Java 16+의 `.toList()`를 사용한다 (자세한 내용은 4번 섹션 참고).
 
 ---
 
 ## 2. Lombok
 
-### 허용 어노테이션
-- `@Getter`
-- `@Setter`
-- `@Data`
-- `@RequiredArgsConstructor`
-- `@AllArgsConstructor`
-- `@Slf4j`
+### 허용 어노테이션과 조합
+
+- **Service/Controller**: `@RequiredArgsConstructor` + `@Service` / `@RestController` + (`@Transactional` 또는 `@RequestMapping`)
+- **DTO**: `@Getter` + `@Builder` + `@NoArgsConstructor(access = AccessLevel.PROTECTED)`
+- **로깅**: `@Slf4j`
 
 ### 사용 금지
-- `@Value`
-- `@Setter` (단일 필드 변경 목적)
-  - 단일 필드 하나만 변경이 필요한 경우 `@Setter` 대신 해당 로직을 담은 메서드를 작성한다.
+
+- `@Setter` — 단일 필드 변경이 필요한 경우 의미를 담은 메서드를 작성한다 (`modify()`, `updateCapacity()`, `connectEvent()` 등)
+- `@Data` — 너무 많은 어노테이션을 한 번에 포함하므로 사용하지 않음
+- `@AllArgsConstructor` (public) — DTO는 `@Builder`로 명시 생성, 엔티티는 정적 팩토리/Builder로 생성
+
+### Builder 생성자 가시성
+
+DTO의 `@Builder`를 붙인 생성자는 **private**으로 둔다. 외부에서는 반드시 빌더만 사용하도록 강제.
+
+📎 Reference: `reference.md` → "2. Lombok"
 
 ---
 
 ## 3. Optional
 
 ### 사용 권장
-- 메서드 반환 타입에서 "값이 없을 수 있음"을 명시할 때 (특히 Repository의 단건 조회)
-- `null` 체크 후 분기/변환 로직이 이어질 때 (`map`, `filter`, `orElse`로 표현 가능한 경우)
+
+- **Repository 단건 조회의 반환 타입** (`Optional<User> findByEmail(String email)`)
+- `.orElseThrow(() -> new NotFoundException(Reason, Message))` 패턴이 **표준**
+- `.map(...).orElse(...)` 체이닝으로 분기 표현
+- 존재 시 예외를 던지는 경우 `.ifPresent(u -> { throw ... })`
 
 ### 사용 금지
-- **필드 타입으로 사용 금지** (직렬화/JPA 호환성 문제)
-- **메서드 파라미터로 사용 금지** — 호출자가 `Optional.of(...)`로 감싸야 하는 부담을 줌
-- **컬렉션 타입 감싸기 금지** — 빈 컬렉션(`Collections.emptyList()`)을 반환하면 됨
-- 단순 `null` 체크 한 번이면 끝나는 경우 — `if (x != null)`이 더 짧고 명확
 
-### `.get()` 호출 규칙
-- `isPresent()` 체크 없이 `.get()` 호출 금지
-- 가능하면 `orElse`, `orElseThrow`, `orElseGet`으로 대체
+- **필드 타입으로 사용 금지** (직렬화/JPA 호환성)
+- **메서드 파라미터로 사용 금지** — 호출자가 `Optional.of(...)`로 감싸야 하는 부담
+- **컬렉션 타입 감싸기 금지** — 빈 컬렉션을 반환하면 됨
+- **`isPresent()` 체크 없는 `.get()` 호출 금지** — `orElseThrow`/`orElse`/`orElseGet`으로 대체
 
-📎 Reference: `.claude/skills/code_convention/reference/Reference.md` → "Optional 예시"
+📎 Reference: `reference.md` → "3. Optional"
 
 ---
 
 ## 4. Stream
 
 ### 사용 권장
-- 컬렉션 변환(`map`), 필터링(`filter`), 집계(`reduce`, `count`, `sum`)가 **연속될 때**
-- 결과를 다른 컬렉션 타입으로 변환할 때 (`toList`, `toMap`, `groupingBy`)
+
+- 컬렉션 변환(`map`), 필터링(`filter`), 집계가 **연속될 때**
+- 종료 연산은 **`.toList()`** 우선 (`Collectors.toList()` 사용하지 않음)
+- 그룹화/맵 변환은 `Collectors.toMap`, `Collectors.groupingBy` 사용
+- **메서드 레퍼런스(`::`)** 로 변환 가능한 람다는 변환 (`Item::getName`)
 
 ### 사용 금지 / 지양
-- 단순 순회만 하는 경우 — 일반 `for` 루프가 더 명확
-- Stream 내부에서 **외부 상태를 변경**하는 경우 (`forEach` 안에서 외부 리스트에 add 등) — `for` 루프로 작성
-- 예외를 던지는 로직이 들어가는 경우 — checked exception 처리가 지저분해짐
-- `peek()`을 디버깅 외 용도로 사용 금지
-- **3단계 이상 중첩된 stream** — 가독성이 떨어지므로 중간 변수로 분리하거나 메서드로 추출
-- 스트림 사용 후엔 가독성을 위해 한 줄 띄울 것
 
-📎 Reference: `.claude/skills/code_convention/reference/Reference.md` → "Stream 예시"
+- 단순 순회만 하는 경우 (`forEach`로 로깅 등) → 일반 `for` 루프
+- Stream 내부에서 **외부 상태 변경** (`forEach` 안에서 외부 리스트에 add 등) → `for` 루프
+- 예외를 던지는 로직 (checked exception 처리가 지저분해짐)
+- `peek()`을 디버깅 외 용도로 사용 금지
+- **3단계 이상 중첩된 stream** — 중간 변수로 분리하거나 메서드로 추출
+- Stream 사용 후엔 **가독성을 위해 한 줄 띄울 것**
+
+📎 Reference: `reference.md` → "4. Stream"
 
 ---
 
 ## 5. final 키워드
 
 ### 사용
-- **인스턴스 변수(필드)에만 사용한다**
-  - 불변성을 보장하고 객체 상태가 변경되지 않음을 명시할 때
+
+- **인스턴스 필드에만 사용한다** — Service/Controller의 `private final` 의존성 필드가 대표 예
+- 불변성을 보장하고 객체 상태가 변경되지 않음을 명시할 때
 
 ### 사용 금지
-- **지역 변수에 사용 금지**
-- **메서드 파라미터에 사용 금지**
-- **메서드 / 클래스에 사용 금지** (상속 제한이 명확히 필요한 경우 제외)
+
+- **지역 변수**에 사용 금지
+- **메서드 파라미터**에 사용 금지
+- **메서드 / 클래스**에 사용 금지 (상속 제한이 명확히 필요한 경우 제외)
+
+📎 Reference: `reference.md` → "5. final 키워드"
 
 ---
 
 ## 6. String null / 빈 문자열 체크
 
-`str != null` 직접 체크 대신 `org.springframework.util.StringUtils`의 메서드를 사용한다.
+입력 검증은 **Bean Validation 어노테이션**으로 처리하고, 동적인 String null 체크는 거의 사용하지 않는다.
 
 ### 사용 권장
-- **`StringUtils.hasText(str)`** — null이 아니고, 빈 문자열도 아니고, 공백만 있지도 않은지 확인
-- **`StringUtils.hasLength(str)`** — null이 아니고, 빈 문자열도 아닌지 확인 (공백은 유효한 값으로 봄)
 
-### 사용 금지
-- `str != null` 직접 비교 금지
-- `str != null && !str.isEmpty()` 같은 중복 체크 금지
-- `str != null && !str.trim().isEmpty()` 같은 중복 체크 금지
+- **컨트롤러/DTO 입력 검증**: `@NotBlank`, `@NotNull`, `@Email`, `@Pattern` 같은 표준 Bean Validation 어노테이션. 도메인에 맞는 커스텀 validator도 허용
+- 컨트롤러에서 `@Valid` / `@Validated`로 활성화
 
-### 의미별 사용 구분
-- **"실질적인 값이 있는가"** → `StringUtils.hasText(str)` (공백만 있는 경우도 false)
-- **"길이가 1 이상인가"** → `StringUtils.hasLength(str)` (공백도 유효한 값으로 인정)
+### 동적 체크가 정말 필요할 때
+
+- `if (str != null && !str.isBlank())` 같이 의미를 명시적으로 작성
+- `org.apache.commons.lang3.StringUtils`는 사용 금지 (의존성 추가 안 함)
+- `org.springframework.util.StringUtils.hasText(...)`는 강제하지 않지만, 사용해도 무방
 
 ### 주의
-- import 경로는 반드시 `org.springframework.util.StringUtils` 사용
-- Apache Commons의 `org.apache.commons.lang3.StringUtils`와 혼동 금지
 
-📎 Reference: `.claude/skills/code_convention/reference/Reference.md` → "String null / 빈 문자열 체크 예시"
+- 한 DTO 안에서 검증 어노테이션과 if 체크를 혼용하지 않는다 (어노테이션으로 통일).
+
+📎 Reference: `reference.md` → "6. String 체크"
 
 ---
 
 ## 7. 람다 표현식
 
 ### 사용 권장
+
 - 함수형 인터페이스(`Function`, `Predicate`, `Consumer`, `Supplier` 등) 구현 시
 - Stream API와 함께 사용할 때
 - 짧고 명확하게 한 줄로 표현 가능한 경우
 
 ### 사용 금지 / 지양
+
 - **3줄 이상의 람다 본문 금지** — 별도 메서드로 추출 후 메서드 레퍼런스(`::`)로 참조
 - **중첩 람다 금지** — 람다 안에 또 람다가 들어가면 가독성 급격히 저하
 - **람다 내부에서 외부 상태 변경 금지** — 사이드 이펙트가 있으면 일반 `for` 루프 사용
 - **예외를 던지는 로직 지양** — checked exception 처리가 지저분해짐, 필요시 메서드로 추출
 
 ### 메서드 레퍼런스(`::`) 우선 사용
-- 람다가 단순히 메서드 하나만 호출하는 경우 메서드 레퍼런스로 대체한다.
+
+람다가 단순히 메서드 하나만 호출하는 경우 메서드 레퍼런스로 대체한다.
 
 ### 파라미터 작성 규칙
-- **파라미터가 1개일 때는 괄호 생략**
+
+- **파라미터가 1개일 때는 괄호 생략** (`u -> u.getId()`)
 - **파라미터 타입은 생략** (컴파일러가 추론)
-- 파라미터 이름은 의미가 드러나도록 작성, 단순 변환은 `it`, `e` 같은 짧은 이름 허용
+- 파라미터 이름은 의미가 드러나도록 작성. 단순 변환은 `u`, `e`, `dto` 같은 짧은 이름 허용
 
 ### 본문 작성 규칙
+
 - **한 줄이면 중괄호와 `return` 생략**
 - **두 줄 이상이면 중괄호 사용**
 - 복잡한 람다는 메서드로 추출
 
-📎 Reference: `.claude/skills/code_convention/reference/Reference.md` → "람다 표현식 예시"
+📎 Reference: `reference.md` → "7. 람다 표현식"
 
 ---
 
@@ -180,31 +163,47 @@ Java 11 이하 문법만 사용한다.
 가독성을 위해 아래 케이스에서는 **연산자/메서드 단위로 줄바꿈**한다.
 
 ### Stream
-- 각 중간 연산(`filter`, `map`, `sorted` 등)과 종료 연산(`collect`, `forEach` 등)은 **줄을 나눠 작성**
-- 점(`.`)을 줄 앞에 두어 메서드 체이닝임을 명시
+
+- 각 중간 연산(`filter`, `map`, `sorted` 등)과 종료 연산(`toList`, `forEach` 등)은 **줄을 나눠 작성**
+- 점(`.`)을 **줄 앞에** 두어 메서드 체이닝임을 명시
+- Stream 종료 후 다음 코드와 **한 줄 띄움**
 
 ### Builder
-- 각 `setter` 호출마다 **줄을 나눠 작성**
-- `.build()`도 별도 줄에 작성
 
-### if / else / for / while 문
+- 각 setter 호출마다 **줄을 나눠 작성**
+- `.build()`도 별도 줄에 작성
+- 점(`.`)을 줄 앞에 둠
+
+### if / for / while 문
+
 - **중괄호 `{}`는 한 줄짜리라도 반드시 사용**
-- `if`, `else`, `for`, `while` 키워드와 `(` 사이는 **한 칸 띄움**
+- `if`, `for`, `while` 키워드와 `(` 사이는 **한 칸 띄움**
 - `)`와 `{` 사이도 **한 칸 띄움**
-- `else`, `else if`는 **닫는 중괄호 `}`와 같은 줄**에 작성
+- `else`는 9번 섹션 참고 (사용하지 않음)
 
 ### 메서드 체이닝 (공통 규칙)
+
 - **2개 이하**면 한 줄에 작성 가능
 - **3개 이상**이면 메서드마다 줄바꿈
-- 줄바꿈 시 점(`.`)을 다음 줄 **앞쪽**에 배치하고 **4 space 들여쓰기**
+- 줄바꿈 시 점(`.`)을 다음 줄 **앞쪽**에 배치
 
 ### 연산자 / 콤마
+
 - 이항 연산자(`+`, `-`, `==`, `&&` 등) **앞뒤로 한 칸 띄움**
 - 콤마(`,`) **뒤에만 한 칸 띄움**, 앞에는 띄우지 않음
 
-📎 Reference: `.claude/skills/code_convention/reference/Reference.md` → "줄바꿈 / 띄어쓰기 예시"
+📎 Reference: `reference.md` → "8. 줄바꿈 / 띄어쓰기"
+
+---
 
 ## 9. 조건문 규칙
 
-- `if`는 허용하되 `else if`는 사용하지 않는다.
-- Early return이 가능하면 early return으로 작성한다 (`else` 생략).
+- `if`는 허용하되 **`else if`는 사용하지 않는다.**
+- **`else`도 지양** — Early return으로 처리할 수 있다면 early return을 우선한다.
+- 예외 throw나 `.orElseThrow()`를 early return처럼 활용한다.
+- 클래스 어노테이션 순서 (Service 기준 권장):
+  `@Transactional(readOnly = true)` → `@RequiredArgsConstructor` → `@Service`
+  Controller의 경우:
+  `@RestController` → `@RequiredArgsConstructor` → `@RequestMapping`
+
+📎 Reference: `reference.md` → "9. 조건문 규칙"
