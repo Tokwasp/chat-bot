@@ -14,12 +14,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Transactional;
-import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeClient;
+import software.amazon.awssdk.services.bedrockruntime.BedrockRuntimeAsyncClient;
 import software.amazon.awssdk.services.bedrockruntime.model.*;
 
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -39,7 +40,7 @@ public class BedrockServiceTest {
     private BedrockService bedrockService;
 
     @MockitoBean
-    private BedrockRuntimeClient bedrockRuntimeClient;
+    private BedrockRuntimeAsyncClient bedrockRuntimeClient;
 
     @Test
     @DisplayName("BedrockService 빈이 스프링 컨텍스트에 정상 등록된다")
@@ -51,7 +52,7 @@ public class BedrockServiceTest {
     @DisplayName("메시지를 전송하면 Bedrock Converse API를 호출하고 응답 내용과 토큰 사용량을 반환한다")
     void whenMessageSent_thenReturnResponseWithContentAndTokenUsage() {
         when(bedrockRuntimeClient.converse(any(ConverseRequest.class)))
-            .thenReturn(buildConverseResponse("안녕하세요! 무엇을 도와드릴까요?", 10, 15));
+            .thenReturn(CompletableFuture.completedFuture(buildConverseResponse("안녕하세요! 무엇을 도와드릴까요?", 10, 15)));
 
         ConversationResponse response = bedrockService.converse(buildRequest("안녕하세요"));
 
@@ -66,7 +67,7 @@ public class BedrockServiceTest {
     @DisplayName("시스템 프롬프트를 포함한 요청을 전송하면 응답을 반환한다")
     void whenSystemPromptProvided_thenReturnResponse() {
         when(bedrockRuntimeClient.converse(any(ConverseRequest.class)))
-            .thenReturn(buildConverseResponse("저는 친절한 AI입니다.", 20, 10));
+            .thenReturn(CompletableFuture.completedFuture(buildConverseResponse("저는 친절한 AI입니다.", 20, 10)));
 
         ConversationResponse response = bedrockService.converse(
             buildRequest("당신은 누구인가요?", "당신은 친절한 AI 어시스턴트입니다."));
@@ -161,37 +162,39 @@ public class BedrockServiceTest {
     }
 
     @Test
-    @DisplayName("Bedrock에서 AccessDeniedException이 발생하면 ACCESS_DENIED 메시지의 예외를 던진다")
-    void whenAccessDeniedException_thenThrowExceptionWithAccessDeniedMessage() {
+    @DisplayName("Bedrock에서 AccessDeniedException이 발생하면 retryable이 false인 BedrockServiceError(ACCESS_DENIED)를 던진다")
+    void whenAccessDeniedException_thenThrowNonRetryableBedrockServiceError() {
         when(bedrockRuntimeClient.converse(any(ConverseRequest.class)))
             .thenThrow(AccessDeniedException.builder().message("Access denied").build());
 
         assertThatThrownBy(() -> bedrockService.converse(buildRequest("안녕")))
-            .hasMessageContaining("ACCESS_DENIED");
+            .isInstanceOf(BedrockServiceError.class)
+            .hasMessage("ACCESS_DENIED")
+            .satisfies(e -> assertThat(((BedrockServiceError) e).isRetryable()).isFalse());
     }
 
     @Test
-    @DisplayName("Bedrock에서 ResourceNotFoundException이 발생하면 MODEL_NOT_FOUND 메시지의 예외를 던진다")
-    void whenResourceNotFoundException_thenThrowExceptionWithModelNotFoundMessage() {
+    @DisplayName("Bedrock에서 ResourceNotFoundException이 발생하면 retryable이 false인 BedrockServiceError(MODEL_NOT_FOUND)를 던진다")
+    void whenResourceNotFoundException_thenThrowNonRetryableBedrockServiceError() {
         when(bedrockRuntimeClient.converse(any(ConverseRequest.class)))
             .thenThrow(ResourceNotFoundException.builder().message("Model not found").build());
 
         assertThatThrownBy(() -> bedrockService.converse(buildRequest("안녕")))
-            .hasMessageContaining("MODEL_NOT_FOUND");
+            .isInstanceOf(BedrockServiceError.class)
+            .hasMessage("MODEL_NOT_FOUND")
+            .satisfies(e -> assertThat(((BedrockServiceError) e).isRetryable()).isFalse());
     }
 
     @Test
-    @DisplayName("Bedrock에서 ThrottlingException이 발생하면 retryable이 true인 BedrockServiceError를 던진다")
+    @DisplayName("Bedrock에서 ThrottlingException이 발생하면 retryable이 true인 BedrockServiceError(THROTTLING)를 던진다")
     void whenThrottlingException_thenThrowRetryableBedrockServiceError() {
         when(bedrockRuntimeClient.converse(any(ConverseRequest.class)))
             .thenThrow(ThrottlingException.builder().message("Rate exceeded").build());
 
-        try {
-            bedrockService.converse(buildRequest("안녕"));
-        } catch (BedrockServiceError e) {
-            assertThat(e).isInstanceOf(BedrockServiceError.class);
-            assertThat(e.isRetryable()).isTrue();
-        }
+        assertThatThrownBy(() -> bedrockService.converse(buildRequest("안녕")))
+            .isInstanceOf(BedrockServiceError.class)
+            .hasMessage("THROTTLING")
+            .satisfies(e -> assertThat(((BedrockServiceError) e).isRetryable()).isTrue());
     }
 
     private ConversationRequest buildRequest(String userText) {
@@ -225,49 +228,35 @@ public class BedrockServiceTest {
     }
 
     private ConverseStreamOutput textDeltaOutput(String text) {
-        return ConverseStreamOutput.builder()
-            .contentBlockDelta(ContentBlockDeltaEvent.builder()
-                .delta(ContentBlockDelta.builder().text(text).build())
-                .contentBlockIndex(0).build())
-            .build();
+        return ConverseStreamOutput.contentBlockDeltaBuilder()
+            .delta(ContentBlockDelta.fromText(text))
+            .contentBlockIndex(0).build();
     }
 
     private ConverseStreamOutput messageStopOutput(StopReason stopReason) {
-        return ConverseStreamOutput.builder()
-            .messageStop(software.amazon.awssdk.services.bedrockruntime.model.MessageStopEvent.builder()
-                .stopReason(stopReason).build())
-            .build();
+        return ConverseStreamOutput.messageStopBuilder()
+            .stopReason(stopReason).build();
     }
 
     private ConverseStreamOutput metadataOutput(int inputTokens, int outputTokens) {
-        return ConverseStreamOutput.builder()
-            .metadata(ConverseStreamMetadataEvent.builder()
-                .usage(software.amazon.awssdk.services.bedrockruntime.model.TokenUsage.builder()
-                    .inputTokens(inputTokens).outputTokens(outputTokens)
-                    .totalTokens(inputTokens + outputTokens).build())
-                .build())
+        return ConverseStreamOutput.metadataBuilder()
+            .usage(software.amazon.awssdk.services.bedrockruntime.model.TokenUsage.builder()
+                .inputTokens(inputTokens).outputTokens(outputTokens)
+                .totalTokens(inputTokens + outputTokens).build())
             .build();
     }
 
     private ConverseStreamOutput toolUseStartOutput(String toolUseId, String toolName) {
-        return ConverseStreamOutput.builder()
-            .contentBlockStart(ContentBlockStartEvent.builder()
-                .start(ContentBlockStart.builder()
-                    .toolUse(ToolUseBlockStart.builder()
-                        .toolUseId(toolUseId).name(toolName).build())
-                    .build())
-                .contentBlockIndex(0).build())
-            .build();
+        return ConverseStreamOutput.contentBlockStartBuilder()
+            .start(ContentBlockStart.fromToolUse(ToolUseBlockStart.builder()
+                .toolUseId(toolUseId).name(toolName).build()))
+            .contentBlockIndex(0).build();
     }
 
     private ConverseStreamOutput toolUseInputOutput(String input) {
-        return ConverseStreamOutput.builder()
-            .contentBlockDelta(ContentBlockDeltaEvent.builder()
-                .delta(ContentBlockDelta.builder()
-                    .toolUse(ToolUseBlockInputDelta.builder().input(input).build())
-                    .build())
-                .contentBlockIndex(0).build())
-            .build();
+        return ConverseStreamOutput.contentBlockDeltaBuilder()
+            .delta(ContentBlockDelta.fromToolUse(ToolUseBlockDelta.builder().input(input).build()))
+            .contentBlockIndex(0).build();
     }
 
     private void mockStreaming(List<ConverseStreamOutput> events) {
@@ -283,7 +272,7 @@ public class BedrockServiceTest {
                 public void cancel() {}
             }));
             handler.complete();
-            return null;
+            return CompletableFuture.completedFuture(null);
         }).when(bedrockRuntimeClient).converseStream(any(ConverseStreamRequest.class), any(ConverseStreamResponseHandler.class));
     }
 
@@ -302,7 +291,7 @@ public class BedrockServiceTest {
                 public void cancel() {}
             }));
             handler.complete();
-            return null;
+            return CompletableFuture.completedFuture(null);
         }).when(bedrockRuntimeClient).converseStream(any(ConverseStreamRequest.class), any(ConverseStreamResponseHandler.class));
     }
 
@@ -319,7 +308,7 @@ public class BedrockServiceTest {
                 public void cancel() {}
             }));
             handler.complete();
-            return null;
+            return CompletableFuture.completedFuture(null);
         }).when(bedrockRuntimeClient).converseStream(captor.capture(), any(ConverseStreamResponseHandler.class));
     }
 

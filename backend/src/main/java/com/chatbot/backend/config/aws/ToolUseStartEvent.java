@@ -5,11 +5,13 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public class TextDeltaEvent implements StreamEvent {
-    private final String text;
+public class ToolUseStartEvent implements StreamEvent {
+
+    private final String toolUseId;
+    private final String toolName;
 
     @Override
     public String getType() {
-        return "text_delta";
+        return "tool_use_start";
     }
 }

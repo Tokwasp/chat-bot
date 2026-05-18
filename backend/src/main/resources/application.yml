@@ -1,3 +1,6 @@
+server:
+  port: 3001
+
 aws:
   region: us-east-1
   bedrock:
