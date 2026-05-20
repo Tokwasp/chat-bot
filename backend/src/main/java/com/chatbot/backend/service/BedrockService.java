@@ -105,11 +105,7 @@ public class BedrockService {
                 .messages(toSdkMessages(request.getMessages()))
                 .inferenceConfig(buildInferenceConfig(request));
 
-        if (StringUtils.hasText(request.getSystemPrompt())) {
-            builder.system(SystemContentBlock.builder()
-                    .text(request.getSystemPrompt())
-                    .build());
-        }
+        applySystemPrompt(request, builder::system);
         return builder.build();
     }
 
@@ -121,11 +117,7 @@ public class BedrockService {
                 .messages(messages)
                 .inferenceConfig(buildInferenceConfig(request));
 
-        if (StringUtils.hasText(request.getSystemPrompt())) {
-            builder.system(SystemContentBlock.builder()
-                    .text(request.getSystemPrompt())
-                    .build());
-        }
+        applySystemPrompt(request, builder::system);
 
         if (toolOrchestrator != null) {
             List<Tool> tools = Optional.ofNullable(toolOrchestrator.getToolDefinitions())
@@ -145,6 +137,16 @@ public class BedrockService {
             ic.temperature(request.getTemperature().floatValue());
         }
         return ic.build();
+    }
+
+    private void applySystemPrompt(ConversationRequest request, Consumer<SystemContentBlock> systemSetter) {
+        if (!StringUtils.hasText(request.getSystemPrompt())) {
+            return;
+        }
+
+        systemSetter.accept(SystemContentBlock.builder()
+                .text(request.getSystemPrompt())
+                .build());
     }
 
     private List<Message> toSdkMessages(List<com.chatbot.backend.config.aws.Message> messages) {

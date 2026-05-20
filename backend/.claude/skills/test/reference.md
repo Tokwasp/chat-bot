@@ -352,11 +352,6 @@ void delete() {
 ```java
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-
-import static lems.cowshed.domain.bookmark.BookmarkStatus.BOOKMARK;
-import static lems.cowshed.domain.bookmark.BookmarkStatus.NOT_BOOKMARK;
-import static lems.cowshed.domain.user.Mbti.INTP;
-import static lems.cowshed.domain.user.Mbti.ISTP;
 ```
 
 assertion 함수 + enum 상수를 적극 static import.

@@ -15,7 +15,7 @@ import java.util.*;
 @RequiredArgsConstructor
 public class SessionManager {
 
-    private static final String DEFAULT_TITLE = "NEW CHAT";
+    private static final String DEFAULT_TITLE = "New Chat";
 
     private final SessionRepository repository;
 

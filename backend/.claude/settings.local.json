@@ -38,7 +38,8 @@
       "PowerShell(.\\\\gradlew.bat compileJava 2>&1 | Select-Object -Last 15)",
       "PowerShell(try { \\(Invoke-WebRequest -Uri \"http://localhost:3001/api/health\" -UseBasicParsing\\).Content } catch { $_.Exception.Message }; try { \\(Invoke-WebRequest -Uri \"http://localhost:3001/h2-console\" -UseBasicParsing -MaximumRedirection 0\\).StatusCode } catch { $_.Exception.Response.StatusCode.value__ })",
       "Skill(test)",
-      "Skill(code_convention)"
+      "Skill(code_convention)",
+      "Bash(gh api *)"
     ]
   }
 }
