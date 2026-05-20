@@ -1,14 +1,18 @@
 package com.chatbot.backend.controller;
 
+import com.chatbot.backend.config.SystemPromptConfig;
 import com.chatbot.backend.config.aws.*;
 import com.chatbot.backend.dto.ChatRequest;
 import com.chatbot.backend.exception.ChatbotException;
 import com.chatbot.backend.service.BedrockService;
 import com.chatbot.backend.service.MessageHistoryService;
+import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
+import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -20,8 +24,6 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 @Slf4j
 @RestController
@@ -32,19 +34,39 @@ public class ChatController {
     private static final long SSE_TIMEOUT_MS = 300_000L;
     private static final String ROLE_USER = "user";
     private static final String ROLE_ASSISTANT = "assistant";
+    private static final int CORE_POOL_SIZE = 8;
+    private static final int MAX_POOL_SIZE = 50;
 
     private final BedrockService bedrockService;
     private final MessageHistoryService messageHistoryService;
-    private final ExecutorService streamExecutor = Executors.newCachedThreadPool();
+    private final ThreadPoolTaskExecutor streamExecutor = createStreamExecutor();
 
     @PostMapping
     public SseEmitter chat(@RequestBody ChatRequest request) {
         validate(request);
 
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
+        emitter.onTimeout(emitter::complete);
+        emitter.onError(e -> log.warn("SSE connection error for session {}", request.getSessionId(), e));
         streamExecutor.execute(() -> stream(emitter, request));
 
         return emitter;
+    }
+
+    @PreDestroy
+    void shutdownExecutor() {
+        streamExecutor.shutdown();
+    }
+
+    private static ThreadPoolTaskExecutor createStreamExecutor() {
+        ThreadPoolTaskExecutor executor = new ThreadPoolTaskExecutor();
+        executor.setCorePoolSize(CORE_POOL_SIZE);
+        executor.setMaxPoolSize(MAX_POOL_SIZE);
+        executor.setQueueCapacity(0);
+        executor.setThreadNamePrefix("chat-sse-");
+        executor.initialize();
+
+        return executor;
     }
 
     private void validate(ChatRequest request) {
@@ -56,6 +78,14 @@ public class ChatController {
         }
     }
 
+    private String resolveSystemPrompt(ChatRequest request) {
+        if (StringUtils.hasText(request.getSystemPrompt())) {
+            return request.getSystemPrompt();
+        }
+
+        return SystemPromptConfig.getSystemPrompt(request.getPersona());
+    }
+
     private void stream(SseEmitter emitter, ChatRequest request) {
         String sessionId = request.getSessionId();
         try {
@@ -63,7 +93,7 @@ public class ChatController {
 
             ConversationRequest conversationRequest = new ConversationRequest(
                     toAwsMessages(messageHistoryService.get(sessionId)),
-                    request.getSystemPrompt(), null, null);
+                    resolveSystemPrompt(request), null, null);
 
             StringBuilder assistantText = new StringBuilder();
             bedrockService.converseStream(conversationRequest,

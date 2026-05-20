@@ -6,6 +6,7 @@ import com.chatbot.backend.config.aws.ConversationResponse;
 import com.chatbot.backend.config.aws.Message;
 import com.chatbot.backend.service.BedrockService;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,6 +14,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.Collections;
 
+@Tag("integration")
 @SpringBootTest
 public class BedrockServiceIntegrationTest {
 

@@ -15,4 +15,5 @@ public class ChatRequest {
     private String sessionId;
     private String message;
     private String systemPrompt;
+    private String persona;
 }
