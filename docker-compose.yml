@@ -1,0 +1,16 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    image: chatbot-backend:latest
+    container_name: chatbot-backend
+    ports:
+      - "3001:3001"
+    environment:
+      # 리전은 application.yml 기본값(us-east-1)을 덮어쓰고 싶을 때만 사용
+      AWS_REGION: us-east-1
+      # 자격증명: IAM 역할(EC2/ECS)로 자동 주입되므로 키를 적지 않는다.
+      # 로컬에서 테스트하려면 아래 두 줄의 주석을 풀고 셸 환경변수로 전달:
+      # AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID}
+      # AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY}
+    restart: unless-stopped
