@@ -23,8 +23,7 @@ public class Message {
     @Column(nullable = false)
     private String role;
 
-    @Lob
-    @Column(nullable = false)
+    @Column(columnDefinition = "LONGTEXT", nullable = false)
     private String content;
 
     @Column(name = "created_at", nullable = false, updatable = false)
