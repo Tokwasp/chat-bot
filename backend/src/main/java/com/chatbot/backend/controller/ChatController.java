@@ -6,6 +6,7 @@ import com.chatbot.backend.dto.ChatRequest;
 import com.chatbot.backend.exception.ChatbotException;
 import com.chatbot.backend.service.BedrockService;
 import com.chatbot.backend.service.MessageHistoryService;
+import com.chatbot.backend.service.SessionManager;
 import jakarta.annotation.PreDestroy;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,6 +40,7 @@ public class ChatController {
 
     private final BedrockService bedrockService;
     private final MessageHistoryService messageHistoryService;
+    private final SessionManager sessionManager;
     private final ThreadPoolTaskExecutor streamExecutor = createStreamExecutor();
 
     @PostMapping
@@ -90,6 +92,7 @@ public class ChatController {
         String sessionId = request.getSessionId();
         try {
             messageHistoryService.add(sessionId, ROLE_USER, request.getMessage());
+            sessionManager.touch(sessionId);
 
             ConversationRequest conversationRequest = new ConversationRequest(
                     toAwsMessages(messageHistoryService.get(sessionId)),
