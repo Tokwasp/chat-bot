@@ -19,6 +19,9 @@ public class Session {
     @Id
     private String id;
 
+    @Column(name = "user_id", nullable = false)
+    private String userId;
+
     @Column(nullable = false)
     private String title;
 
@@ -32,8 +35,9 @@ public class Session {
     @Column(columnDefinition = "TEXT")
     private Map<String, Object> metadata;
 
-    public Session(String id, String title, Map<String, Object> metadata) {
+    public Session(String id, String userId, String title, Map<String, Object> metadata) {
         this.id = id;
+        this.userId = userId;
         this.title = title;
         this.metadata = metadata;
         this.createdAt = LocalDateTime.now();

@@ -3,6 +3,7 @@ package com.chatbot.backend.service;
 import com.chatbot.backend.domain.Session;
 import com.chatbot.backend.dto.CreateSessionRequest;
 import com.chatbot.backend.dto.UpdateSessionRequest;
+import com.chatbot.backend.exception.ChatbotException;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -16,10 +17,13 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @Transactional
 class SessionManagerTest {
+
+    private static final String USER_ID = "user-1";
 
     @Autowired
     SessionManager sessionManager;
@@ -31,13 +35,14 @@ class SessionManagerTest {
     @DisplayName("세션을 생성하면 고유 ID, 기본 제목('New Chat'), 생성/수정 시각이 자동으로 설정된다")
     void create_WhenNoIdAndTitle_ThenAutoFilled() {
         //given
-        CreateSessionRequest request = createSessionRequest(null, null, null);
+        CreateSessionRequest request = createSessionRequest(null, USER_ID, null, null);
 
         //when
         Session session = sessionManager.create(request);
 
         //then
         assertThat(session.getId()).isNotBlank();
+        assertThat(session.getUserId()).isEqualTo(USER_ID);
         assertThat(session.getTitle()).isEqualTo("New Chat");
         assertThat(session.getCreatedAt()).isNotNull();
         assertThat(session.getUpdatedAt()).isNotNull();
@@ -48,7 +53,7 @@ class SessionManagerTest {
     void create_WhenCustomTitleAndMetadata_ThenStored() {
         //given
         Map<String, Object> metadata = Map.of("model", "claude-sonnet-4-6");
-        CreateSessionRequest request = createSessionRequest(null, "내 챗방", metadata);
+        CreateSessionRequest request = createSessionRequest(null, USER_ID, "내 챗방", metadata);
 
         //when
         Session session = sessionManager.create(request);
@@ -59,10 +64,22 @@ class SessionManagerTest {
     }
 
     @Test
+    @DisplayName("userId 없이 세션을 생성하면 '사용자 ID가 필요합니다.' 예외가 발생한다")
+    void create_WhenUserIdMissing_ThenThrowsException() {
+        //given
+        CreateSessionRequest request = createSessionRequest(null, null, "제목", null);
+
+        //when //then
+        assertThatThrownBy(() -> sessionManager.create(request))
+            .isInstanceOf(ChatbotException.class)
+            .hasMessage("사용자 ID가 필요합니다.");
+    }
+
+    @Test
     @DisplayName("ID로 세션을 조회하면 해당 세션을 반환한다")
     void get_WhenIdExists_ThenReturnsSession() {
         //given
-        Session created = sessionManager.create(createSessionRequest(null, "조회 대상", null));
+        Session created = sessionManager.create(createSessionRequest(null, USER_ID, "조회 대상", null));
 
         //when
         Optional<Session> found = sessionManager.get(created.getId());
@@ -85,19 +102,19 @@ class SessionManagerTest {
     }
 
     @Test
-    @DisplayName("전체 세션 목록은 수정 시각 기준 최신순으로 정렬된다")
-    void getAll_ThenSortedByUpdatedAtDesc() throws InterruptedException {
+    @DisplayName("회원의 세션 목록은 수정 시각 기준 최신순으로 정렬된다")
+    void getByUser_ThenSortedByUpdatedAtDesc() throws InterruptedException {
         //given
-        Session first = sessionManager.create(createSessionRequest(null, "첫번째", null));
+        Session first = sessionManager.create(createSessionRequest(null, USER_ID, "첫번째", null));
         Thread.sleep(10);
-        Session second = sessionManager.create(createSessionRequest(null, "두번째", null));
+        Session second = sessionManager.create(createSessionRequest(null, USER_ID, "두번째", null));
         Thread.sleep(10);
-        Session third = sessionManager.create(createSessionRequest(null, "세번째", null));
+        Session third = sessionManager.create(createSessionRequest(null, USER_ID, "세번째", null));
         em.flush();
         em.clear();
 
         //when
-        List<Session> all = sessionManager.getAll();
+        List<Session> all = sessionManager.getByUser(USER_ID);
 
         //then
         assertThat(all)
@@ -106,11 +123,29 @@ class SessionManagerTest {
     }
 
     @Test
+    @DisplayName("회원의 세션 목록에는 다른 회원의 세션이 포함되지 않는다")
+    void getByUser_WhenOtherUserSessionsExist_ThenExcluded() {
+        //given
+        Session mine = sessionManager.create(createSessionRequest(null, USER_ID, "내 세션", null));
+        sessionManager.create(createSessionRequest(null, "user-2", "남의 세션", null));
+        em.flush();
+        em.clear();
+
+        //when
+        List<Session> all = sessionManager.getByUser(USER_ID);
+
+        //then
+        assertThat(all)
+            .extracting(Session::getId)
+            .containsExactly(mine.getId());
+    }
+
+    @Test
     @DisplayName("세션의 제목과 메타데이터를 수정하면 변경되고 수정 시각이 갱신된다")
     void update_WhenTitleAndMetadata_ThenUpdatedAtChanges() throws InterruptedException {
         //given
         Session created = sessionManager.create(
-            createSessionRequest(null, "원래 제목", Map.of("k", "v")));
+            createSessionRequest(null, USER_ID, "원래 제목", Map.of("k", "v")));
         LocalDateTime originalUpdatedAt = created.getUpdatedAt();
         Map<String, Object> newMetadata = Map.of("model", "haiku");
         Thread.sleep(10);
@@ -131,7 +166,7 @@ class SessionManagerTest {
     @DisplayName("세션을 삭제하면 더 이상 조회되지 않는다")
     void delete_WhenSessionExists_ThenNotFoundAfterDelete() {
         //given
-        Session created = sessionManager.create(createSessionRequest(null, "삭제 대상", null));
+        Session created = sessionManager.create(createSessionRequest(null, USER_ID, "삭제 대상", null));
         em.flush();
         em.clear();
 
@@ -145,8 +180,8 @@ class SessionManagerTest {
         assertThat(sessionManager.get(created.getId())).isEmpty();
     }
 
-    private static CreateSessionRequest createSessionRequest(String id, String title, Map<String, Object> metadata) {
-        return new CreateSessionRequest(id, title, metadata);
+    private static CreateSessionRequest createSessionRequest(String id, String userId, String title, Map<String, Object> metadata) {
+        return new CreateSessionRequest(id, userId, title, metadata);
     }
 
     private static UpdateSessionRequest createUpdateRequest(String title, Map<String, Object> metadata) {

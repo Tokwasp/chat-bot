@@ -31,8 +31,8 @@ public class SessionController {
     }
 
     @GetMapping
-    public List<SessionDto> getAll() {
-        return sessionManager.getAll().stream()
+    public List<SessionDto> getByUser(@RequestParam String userId) {
+        return sessionManager.getByUser(userId).stream()
                 .map(SessionDto::from)
                 .toList();
     }

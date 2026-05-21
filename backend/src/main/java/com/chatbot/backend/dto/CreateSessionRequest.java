@@ -10,6 +10,7 @@ import java.util.Map;
 public class CreateSessionRequest {
 
     private final String id;
+    private final String userId;
     private final String title;
     private final Map<String, Object> metadata;
 }

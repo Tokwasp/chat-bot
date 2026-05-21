@@ -9,5 +9,5 @@ import java.util.List;
 @Repository
 public interface SessionRepository extends JpaRepository<Session, String> {
 
-    List<Session> findAllByOrderByUpdatedAtDesc();
+    List<Session> findByUserIdOrderByUpdatedAtDesc(String userId);
 }
