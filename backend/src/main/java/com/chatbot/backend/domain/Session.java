@@ -40,6 +40,10 @@ public class Session {
         this.updatedAt = this.createdAt;
     }
 
+    public void touch() {
+        this.updatedAt = LocalDateTime.now();
+    }
+
     public void applyUpdate(UpdateSessionRequest request) {
         if (StringUtils.hasText(request.getTitle())) {
             this.title = request.getTitle();

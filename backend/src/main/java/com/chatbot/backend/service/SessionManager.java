@@ -31,6 +31,11 @@ public class SessionManager {
         return repository.save(new Session(id, title, request.getMetadata()));
     }
 
+    @Transactional
+    public void touch(String id) {
+        repository.findById(id).ifPresent(Session::touch);
+    }
+
     @Transactional(readOnly = true)
     public Optional<Session> get(String id) {
         return repository.findById(id);
