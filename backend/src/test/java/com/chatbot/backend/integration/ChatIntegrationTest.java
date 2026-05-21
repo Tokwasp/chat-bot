@@ -123,7 +123,7 @@ class ChatIntegrationTest {
     private String createSession() throws Exception {
         String response = mockMvc.perform(post("/api/sessions")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"Integration Test Chat\"}"))
+                .content("{\"userId\":\"user-1\",\"title\":\"Integration Test Chat\"}"))
             .andExpect(status().isCreated())
             .andReturn().getResponse().getContentAsString();
 

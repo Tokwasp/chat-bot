@@ -17,6 +17,7 @@ import java.util.Map;
 public class SessionDto {
 
     private String id;
+    private String userId;
     private String title;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
@@ -25,6 +26,7 @@ public class SessionDto {
     public static SessionDto from(Session session) {
         return SessionDto.builder()
                 .id(session.getId())
+                .userId(session.getUserId())
                 .title(session.getTitle())
                 .createdAt(session.getCreatedAt())
                 .updatedAt(session.getUpdatedAt())

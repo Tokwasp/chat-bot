@@ -74,15 +74,15 @@ class SessionControllerTest {
     }
 
     @Test
-    @DisplayName("GET /api/sessions: 생성된 모든 세션을 배열로 반환한다")
-    void getAllSessions_ThenReturnsArrayOfSessions() throws Exception {
+    @DisplayName("GET /api/sessions: userId로 해당 회원의 세션을 배열로 반환한다")
+    void getSessionsByUser_ThenReturnsArrayOfSessions() throws Exception {
         //given
-        when(sessionManager.getAll()).thenReturn(List.of(
+        when(sessionManager.getByUser("user-1")).thenReturn(List.of(
             session("id-1", "첫번째"),
             session("id-2", "두번째")));
 
         //when //then
-        mockMvc.perform(get("/api/sessions"))
+        mockMvc.perform(get("/api/sessions").param("userId", "user-1"))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$").isArray())
             .andExpect(jsonPath("$", hasSize(2)));
@@ -147,6 +147,6 @@ class SessionControllerTest {
     }
 
     private Session session(String id, String title) {
-        return new Session(id, title, null);
+        return new Session(id, "user-1", title, null);
     }
 }

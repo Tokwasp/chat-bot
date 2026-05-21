@@ -3,8 +3,10 @@ package com.chatbot.backend.service;
 import com.chatbot.backend.domain.Session;
 import com.chatbot.backend.dto.CreateSessionRequest;
 import com.chatbot.backend.dto.UpdateSessionRequest;
+import com.chatbot.backend.exception.ChatbotException;
 import com.chatbot.backend.repository.SessionRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -21,6 +23,9 @@ public class SessionManager {
 
     @Transactional
     public Session create(CreateSessionRequest request) {
+        if (!StringUtils.hasText(request.getUserId())) {
+            throw new ChatbotException("사용자 ID가 필요합니다.", HttpStatus.BAD_REQUEST.value(), "MISSING_USER_ID");
+        }
         String id = StringUtils.hasText(request.getId())
                 ? request.getId()
                 : UUID.randomUUID().toString();
@@ -28,7 +33,7 @@ public class SessionManager {
                 ? request.getTitle()
                 : DEFAULT_TITLE;
 
-        return repository.save(new Session(id, title, request.getMetadata()));
+        return repository.save(new Session(id, request.getUserId(), title, request.getMetadata()));
     }
 
     @Transactional
@@ -42,8 +47,8 @@ public class SessionManager {
     }
 
     @Transactional(readOnly = true)
-    public List<Session> getAll() {
-        return repository.findAllByOrderByUpdatedAtDesc();
+    public List<Session> getByUser(String userId) {
+        return repository.findByUserIdOrderByUpdatedAtDesc(userId);
     }
 
     @Transactional

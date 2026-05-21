@@ -87,6 +87,6 @@ class SessionMessagesControllerTest {
     }
 
     private Session session(String id) {
-        return new Session(id, "Messages Test", null);
+        return new Session(id, "user-1", "Messages Test", null);
     }
 }
