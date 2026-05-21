@@ -2,8 +2,7 @@ name: Push to ECR
 
 on:
   push:
-    branches: [ master, main ]
-  workflow_dispatch:
+    branches: [ master ]
 
 permissions:
   id-token: write
