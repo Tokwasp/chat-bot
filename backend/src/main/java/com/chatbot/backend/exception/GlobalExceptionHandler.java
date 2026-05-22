@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
+    private static final String INTERNAL_ERROR_MESSAGE = "서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.";
+    private static final String INTERNAL_ERROR_CODE = "INTERNAL_SERVER_ERROR";
+
     @ExceptionHandler(ChatbotException.class)
     public ResponseEntity<ErrorResponse> handleChatbotException(ChatbotException e) {
         log.error(e.getMessage(), e);
@@ -21,6 +24,6 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ErrorResponse> handleGeneric(Exception e) {
         log.error(e.getMessage(), e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(new ErrorResponse(new ErrorResponse.ErrorBody(e.getMessage(), null)));
+                .body(new ErrorResponse(new ErrorResponse.ErrorBody(INTERNAL_ERROR_MESSAGE, INTERNAL_ERROR_CODE)));
     }
 }

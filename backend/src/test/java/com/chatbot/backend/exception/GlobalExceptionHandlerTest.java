@@ -12,7 +12,7 @@ class GlobalExceptionHandlerTest {
     private final GlobalExceptionHandler handler = new GlobalExceptionHandler();
 
     @Test
-    @DisplayName("statusCode가 없는 일반 예외는 500 상태와 에러 메시지를 반환한다")
+    @DisplayName("일반 예외는 500 상태와 내부 정보를 감춘 한국어 메시지를 반환한다")
     void handleGeneric_WhenPlainException_ThenReturnsInternalServerError() {
         //given
         Exception exception = new RuntimeException("Something went wrong");
@@ -22,8 +22,10 @@ class GlobalExceptionHandlerTest {
 
         //then
         assertThat(response.getStatusCode().value()).isEqualTo(500);
-        assertThat(response.getBody().getError().getMessage()).isEqualTo("Something went wrong");
-        assertThat(response.getBody().getError().getCode()).isNull();
+        assertThat(response.getBody().getError().getMessage())
+            .isEqualTo("서버 내부 오류가 발생했습니다. 잠시 후 다시 시도해주세요.");
+        assertThat(response.getBody().getError().getMessage()).doesNotContain("Something went wrong");
+        assertThat(response.getBody().getError().getCode()).isEqualTo("INTERNAL_SERVER_ERROR");
     }
 
     @Test
