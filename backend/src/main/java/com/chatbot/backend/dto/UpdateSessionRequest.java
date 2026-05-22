@@ -1,14 +1,19 @@
 package com.chatbot.backend.dto;
 
+import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
 
 import java.util.Map;
 
 @Getter
-@AllArgsConstructor
+@Builder
+@NoArgsConstructor(access = AccessLevel.PROTECTED)
+@AllArgsConstructor(access = AccessLevel.PRIVATE)
 public class UpdateSessionRequest {
 
-    private final String title;
-    private final Map<String, Object> metadata;
+    private String title;
+    private Map<String, Object> metadata;
 }

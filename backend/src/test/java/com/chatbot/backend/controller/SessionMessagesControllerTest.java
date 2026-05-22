@@ -45,8 +45,8 @@ class SessionMessagesControllerTest {
         //when //then
         mockMvc.perform(get("/api/sessions/{id}/messages", "session-id"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$").isArray())
-            .andExpect(jsonPath("$", hasSize(0)));
+            .andExpect(jsonPath("$.data").isArray())
+            .andExpect(jsonPath("$.data", hasSize(0)));
     }
 
     @Test

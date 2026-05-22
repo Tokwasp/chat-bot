@@ -44,7 +44,10 @@ class ChatControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.error.message").value("세션 ID가 필요합니다."));
+            .andExpect(jsonPath("$.code").value(400))
+            .andExpect(jsonPath("$.status").value("BAD_REQUEST"))
+            .andExpect(jsonPath("$.message").value("세션 ID가 필요합니다."))
+            .andExpect(jsonPath("$.data").isEmpty());
     }
 
     @Test
@@ -58,7 +61,8 @@ class ChatControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.error.message").value("메시지를 입력해주세요."));
+            .andExpect(jsonPath("$.code").value(400))
+            .andExpect(jsonPath("$.message").value("메시지를 입력해주세요."));
     }
 
     @Test
@@ -72,7 +76,8 @@ class ChatControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(body))
             .andExpect(status().isBadRequest())
-            .andExpect(jsonPath("$.error.message").value("메시지를 입력해주세요."));
+            .andExpect(jsonPath("$.code").value(400))
+            .andExpect(jsonPath("$.message").value("메시지를 입력해주세요."));
     }
 
     @Test

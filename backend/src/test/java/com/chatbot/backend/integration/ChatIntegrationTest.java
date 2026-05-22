@@ -85,11 +85,11 @@ class ChatIntegrationTest {
         //then
         mockMvc.perform(get("/api/sessions/{id}/messages", sessionId))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$", hasSize(2)))
-            .andExpect(jsonPath("$[0].role").value("user"))
-            .andExpect(jsonPath("$[0].content").value("안녕"))
-            .andExpect(jsonPath("$[1].role").value("assistant"))
-            .andExpect(jsonPath("$[1].content").value("안녕하세요"));
+            .andExpect(jsonPath("$.data", hasSize(2)))
+            .andExpect(jsonPath("$.data[0].role").value("user"))
+            .andExpect(jsonPath("$.data[0].content").value("안녕"))
+            .andExpect(jsonPath("$.data[1].role").value("assistant"))
+            .andExpect(jsonPath("$.data[1].content").value("안녕하세요"));
     }
 
     @Test
@@ -111,13 +111,13 @@ class ChatIntegrationTest {
         //then
         mockMvc.perform(get("/api/sessions/{id}/messages", sessionId))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$", hasSize(4)))
-            .andExpect(jsonPath("$[0].role").value("user"))
-            .andExpect(jsonPath("$[0].content").value("첫 질문"))
-            .andExpect(jsonPath("$[1].role").value("assistant"))
-            .andExpect(jsonPath("$[2].role").value("user"))
-            .andExpect(jsonPath("$[2].content").value("둘째 질문"))
-            .andExpect(jsonPath("$[3].role").value("assistant"));
+            .andExpect(jsonPath("$.data", hasSize(4)))
+            .andExpect(jsonPath("$.data[0].role").value("user"))
+            .andExpect(jsonPath("$.data[0].content").value("첫 질문"))
+            .andExpect(jsonPath("$.data[1].role").value("assistant"))
+            .andExpect(jsonPath("$.data[2].role").value("user"))
+            .andExpect(jsonPath("$.data[2].content").value("둘째 질문"))
+            .andExpect(jsonPath("$.data[3].role").value("assistant"));
     }
 
     private String createSession() throws Exception {
@@ -128,7 +128,7 @@ class ChatIntegrationTest {
             .andReturn().getResponse().getContentAsString();
 
         JsonNode node = objectMapper.readTree(response);
-        return node.get("id").asText();
+        return node.get("data").get("id").asText();
     }
 
     private void sendMessage(String sessionId, String message) throws Exception {
