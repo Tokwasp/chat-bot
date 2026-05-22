@@ -102,12 +102,21 @@ public class ChatController {
             bedrockService.converseStream(conversationRequest,
                     event -> handleEvent(emitter, event, assistantText));
 
-            messageHistoryService.add(sessionId, ROLE_ASSISTANT, assistantText.toString());
+            persistAssistantMessage(sessionId, assistantText.toString());
             emitter.complete();
         } catch (Exception e) {
             log.error("Chat streaming failed for session {}", sessionId, e);
             sendError(emitter, e.getMessage());
             emitter.complete();
+        }
+    }
+
+    private void persistAssistantMessage(String sessionId, String content) {
+        try {
+            messageHistoryService.add(sessionId, ROLE_ASSISTANT, content);
+        } catch (Exception e) {
+            log.error("Failed to persist assistant message for session {} (length={})",
+                    sessionId, content.length(), e);
         }
     }
 
