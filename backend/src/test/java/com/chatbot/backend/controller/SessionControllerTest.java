@@ -51,10 +51,12 @@ class SessionControllerTest {
         //when //then
         mockMvc.perform(post("/api/sessions")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{}"))
+                .content("{\"userId\":\"user-1\"}"))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.id").value("generated-id"))
-            .andExpect(jsonPath("$.title").value("New Chat"));
+            .andExpect(jsonPath("$.code").value(200))
+            .andExpect(jsonPath("$.status").value("OK"))
+            .andExpect(jsonPath("$.data.id").value("generated-id"))
+            .andExpect(jsonPath("$.data.title").value("New Chat"));
     }
 
     @Test
@@ -67,10 +69,24 @@ class SessionControllerTest {
         //when //then
         mockMvc.perform(post("/api/sessions")
                 .contentType(MediaType.APPLICATION_JSON)
-                .content("{\"title\":\"내 챗방\"}"))
+                .content("{\"userId\":\"user-1\",\"title\":\"내 챗방\"}"))
             .andExpect(status().isCreated())
-            .andExpect(jsonPath("$.id").isNotEmpty())
-            .andExpect(jsonPath("$.title").value("내 챗방"));
+            .andExpect(jsonPath("$.data.id").isNotEmpty())
+            .andExpect(jsonPath("$.data.title").value("내 챗방"));
+    }
+
+    @Test
+    @DisplayName("POST /api/sessions: userId가 누락되면 400과 함께 '사용자 ID가 필요합니다.' 메시지를 반환한다")
+    void createSession_WhenUserIdMissing_ThenReturnsBadRequest() throws Exception {
+        //when //then
+        mockMvc.perform(post("/api/sessions")
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"title\":\"제목\"}"))
+            .andExpect(status().isBadRequest())
+            .andExpect(jsonPath("$.code").value(400))
+            .andExpect(jsonPath("$.status").value("BAD_REQUEST"))
+            .andExpect(jsonPath("$.message").value("사용자 ID가 필요합니다."))
+            .andExpect(jsonPath("$.data").isEmpty());
     }
 
     @Test
@@ -84,8 +100,8 @@ class SessionControllerTest {
         //when //then
         mockMvc.perform(get("/api/sessions").param("userId", "user-1"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$").isArray())
-            .andExpect(jsonPath("$", hasSize(2)));
+            .andExpect(jsonPath("$.data").isArray())
+            .andExpect(jsonPath("$.data", hasSize(2)));
     }
 
     @Test
@@ -98,8 +114,8 @@ class SessionControllerTest {
         //when //then
         mockMvc.perform(get("/api/sessions/{id}", "session-id"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.id").value("session-id"))
-            .andExpect(jsonPath("$.title").value("조회 대상"));
+            .andExpect(jsonPath("$.data.id").value("session-id"))
+            .andExpect(jsonPath("$.data.title").value("조회 대상"));
     }
 
     @Test
@@ -126,7 +142,7 @@ class SessionControllerTest {
                 .contentType(MediaType.APPLICATION_JSON)
                 .content("{\"title\":\"변경된 제목\"}"))
             .andExpect(status().isOk())
-            .andExpect(jsonPath("$.title").value("변경된 제목"));
+            .andExpect(jsonPath("$.data.title").value("변경된 제목"));
     }
 
     @Test

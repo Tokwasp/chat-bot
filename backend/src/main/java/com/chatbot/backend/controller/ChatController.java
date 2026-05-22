@@ -3,14 +3,13 @@ package com.chatbot.backend.controller;
 import com.chatbot.backend.config.SystemPromptConfig;
 import com.chatbot.backend.config.aws.*;
 import com.chatbot.backend.dto.ChatRequest;
-import com.chatbot.backend.exception.ChatbotException;
 import com.chatbot.backend.service.BedrockService;
 import com.chatbot.backend.service.MessageHistoryService;
 import com.chatbot.backend.service.SessionManager;
 import jakarta.annotation.PreDestroy;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.util.StringUtils;
@@ -44,9 +43,7 @@ public class ChatController {
     private final ThreadPoolTaskExecutor streamExecutor = createStreamExecutor();
 
     @PostMapping
-    public SseEmitter chat(@RequestBody ChatRequest request) {
-        validate(request);
-
+    public SseEmitter chat(@Valid @RequestBody ChatRequest request) {
         SseEmitter emitter = new SseEmitter(SSE_TIMEOUT_MS);
         emitter.onTimeout(emitter::complete);
         emitter.onError(e -> log.warn("SSE connection error for session {}", request.getSessionId(), e));
@@ -69,15 +66,6 @@ public class ChatController {
         executor.initialize();
 
         return executor;
-    }
-
-    private void validate(ChatRequest request) {
-        if (request.getSessionId() == null || request.getSessionId().isBlank()) {
-            throw new ChatbotException("세션 ID가 필요합니다.", HttpStatus.BAD_REQUEST.value(), "MISSING_SESSION_ID");
-        }
-        if (request.getMessage() == null || request.getMessage().isBlank()) {
-            throw new ChatbotException("메시지를 입력해주세요.", HttpStatus.BAD_REQUEST.value(), "MISSING_MESSAGE");
-        }
     }
 
     private String resolveSystemPrompt(ChatRequest request) {

@@ -3,7 +3,6 @@ package com.chatbot.backend.service;
 import com.chatbot.backend.domain.Session;
 import com.chatbot.backend.dto.CreateSessionRequest;
 import com.chatbot.backend.dto.UpdateSessionRequest;
-import com.chatbot.backend.exception.ChatbotException;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,7 +16,6 @@ import java.util.Map;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @SpringBootTest
 @Transactional
@@ -61,18 +59,6 @@ class SessionManagerTest {
         //then
         assertThat(session.getTitle()).isEqualTo("내 챗방");
         assertThat(session.getMetadata()).isEqualTo(metadata);
-    }
-
-    @Test
-    @DisplayName("userId 없이 세션을 생성하면 '사용자 ID가 필요합니다.' 예외가 발생한다")
-    void create_WhenUserIdMissing_ThenThrowsException() {
-        //given
-        CreateSessionRequest request = createSessionRequest(null, null, "제목", null);
-
-        //when //then
-        assertThatThrownBy(() -> sessionManager.create(request))
-            .isInstanceOf(ChatbotException.class)
-            .hasMessage("사용자 ID가 필요합니다.");
     }
 
     @Test
@@ -181,10 +167,18 @@ class SessionManagerTest {
     }
 
     private static CreateSessionRequest createSessionRequest(String id, String userId, String title, Map<String, Object> metadata) {
-        return new CreateSessionRequest(id, userId, title, metadata);
+        return CreateSessionRequest.builder()
+            .id(id)
+            .userId(userId)
+            .title(title)
+            .metadata(metadata)
+            .build();
     }
 
     private static UpdateSessionRequest createUpdateRequest(String title, Map<String, Object> metadata) {
-        return new UpdateSessionRequest(title, metadata);
+        return UpdateSessionRequest.builder()
+            .title(title)
+            .metadata(metadata)
+            .build();
     }
 }
