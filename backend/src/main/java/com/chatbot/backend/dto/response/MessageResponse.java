@@ -1,4 +1,4 @@
-package com.chatbot.backend.dto;
+package com.chatbot.backend.dto.response;
 
 import com.chatbot.backend.domain.Message;
 import lombok.AccessLevel;
@@ -13,15 +13,15 @@ import java.time.LocalDateTime;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class MessageDto {
+public class MessageResponse {
 
     private Long id;
     private String role;
     private String content;
     private LocalDateTime createdAt;
 
-    public static MessageDto from(Message message) {
-        return MessageDto.builder()
+    public static MessageResponse from(Message message) {
+        return MessageResponse.builder()
                 .id(message.getId())
                 .role(message.getRole())
                 .content(message.getContent())

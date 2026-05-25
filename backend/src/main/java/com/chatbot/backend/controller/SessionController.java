@@ -1,10 +1,10 @@
 package com.chatbot.backend.controller;
 
-import com.chatbot.backend.dto.ApiResponse;
-import com.chatbot.backend.dto.CreateSessionRequest;
-import com.chatbot.backend.dto.MessageDto;
-import com.chatbot.backend.dto.SessionDto;
-import com.chatbot.backend.dto.UpdateSessionRequest;
+import com.chatbot.backend.dto.response.ApiResponse;
+import com.chatbot.backend.dto.request.CreateSessionRequest;
+import com.chatbot.backend.dto.response.MessageResponse;
+import com.chatbot.backend.dto.response.SessionResponse;
+import com.chatbot.backend.dto.request.UpdateSessionRequest;
 import com.chatbot.backend.exception.ChatbotException;
 import com.chatbot.backend.service.MessageHistoryService;
 import com.chatbot.backend.service.SessionManager;
@@ -28,31 +28,31 @@ public class SessionController {
     private final MessageHistoryService messageHistoryService;
 
     @PostMapping
-    public ResponseEntity<ApiResponse<SessionDto>> create(@Valid @RequestBody CreateSessionRequest request) {
-        SessionDto data = SessionDto.from(sessionManager.create(request));
+    public ResponseEntity<ApiResponse<SessionResponse>> create(@Valid @RequestBody CreateSessionRequest request) {
+        SessionResponse data = SessionResponse.from(sessionManager.create(request));
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.ok(data));
     }
 
     @GetMapping
-    public ResponseEntity<ApiResponse<List<SessionDto>>> getByUser(@RequestParam String userId) {
-        List<SessionDto> data = sessionManager.getByUser(userId).stream()
-                .map(SessionDto::from)
+    public ResponseEntity<ApiResponse<List<SessionResponse>>> getByUser(@RequestParam String userId) {
+        List<SessionResponse> data = sessionManager.getByUser(userId).stream()
+                .map(SessionResponse::from)
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok(data));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<ApiResponse<SessionDto>> get(@PathVariable String id) {
-        SessionDto data = sessionManager.get(id)
-                .map(SessionDto::from)
+    public ResponseEntity<ApiResponse<SessionResponse>> get(@PathVariable String id) {
+        SessionResponse data = sessionManager.get(id)
+                .map(SessionResponse::from)
                 .orElseThrow(this::sessionNotFound);
         return ResponseEntity.ok(ApiResponse.ok(data));
     }
 
     @PutMapping("/{id}")
-    public ResponseEntity<ApiResponse<SessionDto>> update(@PathVariable String id, @RequestBody UpdateSessionRequest request) {
-        SessionDto data = sessionManager.update(id, request)
-                .map(SessionDto::from)
+    public ResponseEntity<ApiResponse<SessionResponse>> update(@PathVariable String id, @RequestBody UpdateSessionRequest request) {
+        SessionResponse data = sessionManager.update(id, request)
+                .map(SessionResponse::from)
                 .orElseThrow(this::sessionNotFound);
         return ResponseEntity.ok(ApiResponse.ok(data));
     }
@@ -65,11 +65,11 @@ public class SessionController {
     }
 
     @GetMapping("/{id}/messages")
-    public ResponseEntity<ApiResponse<List<MessageDto>>> getMessages(@PathVariable String id) {
+    public ResponseEntity<ApiResponse<List<MessageResponse>>> getMessages(@PathVariable String id) {
         requireSession(id);
 
-        List<MessageDto> data = messageHistoryService.get(id).stream()
-                .map(MessageDto::from)
+        List<MessageResponse> data = messageHistoryService.get(id).stream()
+                .map(MessageResponse::from)
                 .toList();
         return ResponseEntity.ok(ApiResponse.ok(data));
     }

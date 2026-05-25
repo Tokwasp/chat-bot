@@ -1,6 +1,6 @@
 package com.chatbot.backend.controller;
 
-import com.chatbot.backend.dto.ChatRequest;
+import com.chatbot.backend.dto.request.ChatRequest;
 import com.chatbot.backend.service.ChatService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;

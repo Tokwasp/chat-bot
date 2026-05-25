@@ -1,4 +1,4 @@
-package com.chatbot.backend.dto;
+package com.chatbot.backend.dto.response;
 
 import com.chatbot.backend.domain.Session;
 import lombok.AccessLevel;
@@ -14,7 +14,7 @@ import java.util.Map;
 @Builder
 @NoArgsConstructor(access = AccessLevel.PROTECTED)
 @AllArgsConstructor(access = AccessLevel.PRIVATE)
-public class SessionDto {
+public class SessionResponse {
 
     private String id;
     private String userId;
@@ -23,8 +23,8 @@ public class SessionDto {
     private LocalDateTime updatedAt;
     private Map<String, Object> metadata;
 
-    public static SessionDto from(Session session) {
-        return SessionDto.builder()
+    public static SessionResponse from(Session session) {
+        return SessionResponse.builder()
                 .id(session.getId())
                 .userId(session.getUserId())
                 .title(session.getTitle())

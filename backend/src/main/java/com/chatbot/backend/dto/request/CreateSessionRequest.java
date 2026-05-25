@@ -1,4 +1,4 @@
-package com.chatbot.backend.dto;
+package com.chatbot.backend.dto.request;
 
 import jakarta.validation.constraints.NotBlank;
 import lombok.AccessLevel;

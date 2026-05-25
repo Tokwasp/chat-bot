@@ -1,4 +1,4 @@
-package com.chatbot.backend.dto;
+package com.chatbot.backend.dto.response;
 
 import lombok.Getter;
 import org.springframework.http.HttpStatus;
