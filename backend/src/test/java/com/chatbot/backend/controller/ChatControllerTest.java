@@ -1,14 +1,13 @@
 package com.chatbot.backend.controller;
 
-import com.chatbot.backend.service.BedrockService;
-import com.chatbot.backend.service.MessageHistoryService;
-import com.chatbot.backend.service.SessionManager;
+import com.chatbot.backend.service.ChatService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -25,13 +24,10 @@ class ChatControllerTest {
     MockMvc mockMvc;
 
     @MockitoBean
-    BedrockService bedrockService;
+    ChatService chatService;
 
     @MockitoBean
-    SessionManager sessionManager;
-
-    @MockitoBean
-    MessageHistoryService messageHistoryService;
+    ThreadPoolTaskExecutor streamExecutor;
 
     @Test
     @DisplayName("sessionId가 누락되면 400 에러와 함께 '세션 ID가 필요합니다.' 메시지를 반환한다")
