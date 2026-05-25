@@ -2,7 +2,8 @@ package com.chatbot.backend.service;
 
 import com.chatbot.backend.config.SystemPromptConfig;
 import com.chatbot.backend.config.aws.*;
-import com.chatbot.backend.dto.*;
+import com.chatbot.backend.dto.request.ChatRequest;
+import com.chatbot.backend.dto.response.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;

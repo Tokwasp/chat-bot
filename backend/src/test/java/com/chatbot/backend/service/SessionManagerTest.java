@@ -1,8 +1,8 @@
 package com.chatbot.backend.service;
 
 import com.chatbot.backend.domain.Session;
-import com.chatbot.backend.dto.CreateSessionRequest;
-import com.chatbot.backend.dto.UpdateSessionRequest;
+import com.chatbot.backend.dto.request.CreateSessionRequest;
+import com.chatbot.backend.dto.request.UpdateSessionRequest;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

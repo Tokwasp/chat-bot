@@ -1,4 +1,4 @@
-package com.chatbot.backend.dto;
+package com.chatbot.backend.dto.response;
 
 import com.chatbot.backend.config.aws.ToolUseStartEvent;
 import lombok.Getter;

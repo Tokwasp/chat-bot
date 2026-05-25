@@ -1,6 +1,6 @@
 package com.chatbot.backend.exception;
 
-import com.chatbot.backend.dto.ApiResponse;
+import com.chatbot.backend.dto.response.ApiResponse;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;

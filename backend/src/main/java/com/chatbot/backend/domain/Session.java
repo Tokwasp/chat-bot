@@ -1,6 +1,6 @@
 package com.chatbot.backend.domain;
 
-import com.chatbot.backend.dto.UpdateSessionRequest;
+import com.chatbot.backend.dto.request.UpdateSessionRequest;
 import jakarta.persistence.*;
 import lombok.AccessLevel;
 import lombok.Getter;

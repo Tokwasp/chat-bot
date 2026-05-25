@@ -1,4 +1,4 @@
-package com.chatbot.backend.dto;
+package com.chatbot.backend.dto.request;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
