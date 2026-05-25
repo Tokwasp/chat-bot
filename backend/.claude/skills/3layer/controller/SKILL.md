@@ -18,6 +18,9 @@ description: |
 핵심 질문은 단 하나다: **"이 코드는 경계 변환만 하는가, 아니면 판단을 하는가?"**
 판단(비즈니스 분기)이 보이면 그건 Service로 내려보내야 할 코드다.
 
+> 코드 예제는 모두 같은 패키지의 **`reference.md`** 에 있다. 각 규칙 옆의
+> "→ reference.md §N" 표시를 따라 해당 예제를 확인한다.
+
 ---
 
 ## 0. Controller의 책임 경계 — "무엇만 하는가"
@@ -38,6 +41,10 @@ Controller는 **HTTP 입출력 변환만** 담당한다. 한 메서드는 다음
 - **엔티티 변환** — `request.toEntity()` 호출은 Service 안에서 한다. Controller는 호출하지 않는다.
 - **try/catch** — 예외는 Service가 의미 있는 예외로 던지고 `ExceptionHandler`가 처리한다.
 - **DB/도메인 접근** — Repository나 도메인 객체를 직접 다루지 않는다.
+- **인프라/라이브러리 객체 직접 생성·소유** — `Executor`, `WebClient`, AWS/HTTP 클라이언트 등
+  라이브러리 자원을 Controller 안에서 `new`로 만들거나 필드로 들고 있지 않는다. 생명주기 관리
+  (`@PreDestroy` 등)도 Controller의 일이 아니다. 이런 자원은 `config/` 하위에서 `@Bean`으로
+  등록하고 생성자 주입으로 받는다. (§9)
 
 ### 0-2. 판단 기준
 
@@ -52,15 +59,7 @@ Controller는 **HTTP 입출력 변환만** 담당한다. 한 메서드는 다음
 
 ### 1-1. `@RestController` + `@RequiredArgsConstructor`
 
-```java
-@RestController
-@RequiredArgsConstructor
-@RequestMapping("/api/v1/products")
-public class ProductController {
-
-    private final ProductService productService;
-}
-```
+클래스 구조 예제 → reference.md §1
 
 규칙:
 
@@ -81,16 +80,7 @@ public class ProductController {
 ## 2. 반환 타입은 `ResponseEntity<ApiResponse<Response>>`
 
 Controller 메서드의 반환 타입은 **`ResponseEntity<ApiResponse<*Response>>`** 로 통일한다.
-
-```java
-@PostMapping
-public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
-        @Valid @RequestBody ProductCreateRequest request) {
-
-    ProductResponse response = productService.createProduct(request);
-    return ResponseEntity.ok(ApiResponse.ok(response));
-}
-```
+기본 형태와 200/201/204 변형 예제 → reference.md §2
 
 왜 `ResponseEntity`로 한 겹 더 감싸는가:
 
@@ -104,23 +94,8 @@ public ResponseEntity<ApiResponse<ProductResponse>> createProduct(
 | 계층 | 책임 |
 |---|---|
 | `ResponseEntity<...>` | HTTP **상태 코드 + 헤더** (전송 계층 메타) |
-| `ApiResponse<...>` | 공통 응답 **포맷** (`code/status/message/data`) — §4 |
+| `ApiResponse<...>` | 공통 응답 **포맷** (`code/status/message/data`) — §5 |
 | `*Response` | 실제 **데이터** (순수 DTO) — §3 |
-
-자주 쓰는 형태:
-
-```java
-// 200 OK
-return ResponseEntity.ok(ApiResponse.ok(response));
-
-// 201 Created (+ Location 헤더)
-return ResponseEntity
-        .created(URI.create("/api/v1/products/" + response.getId()))
-        .body(ApiResponse.ok(response));
-
-// 204 No Content (본문 없음)
-return ResponseEntity.noContent().build();
-```
 
 ---
 
@@ -128,13 +103,7 @@ return ResponseEntity.noContent().build();
 
 ### 3-1. 허용 어노테이션은 `@Getter` + 기본 생성자뿐
 
-```java
-@Getter
-@NoArgsConstructor(access = AccessLevel.PROTECTED)
-public class ProductCreateRequest {
-    // 필드 + validation 어노테이션
-}
-```
+Request DTO 예제 → reference.md §3-1
 
 - 클래스에는 **`@Getter`와 기본 생성자(`@NoArgsConstructor`) 두 어노테이션만** 허용한다.
 - `@Setter`는 두지 않는다 (요청 객체는 역직렬화 후 변경되지 않는다).
@@ -144,16 +113,7 @@ public class ProductCreateRequest {
 ### 3-2. 엔티티 생성은 Request의 정적 팩토리 메서드에서
 
 Service에 엔티티가 필요하면 **Request가 자기 데이터로 엔티티를 만든다.**
-
-```java
-public Product toEntity() {
-    return Product.builder()
-            .type(type)
-            .name(name)
-            .price(price)
-            .build();
-}
-```
+`toEntity()` 예제 → reference.md §3-2
 
 - 메서드 이름은 `toEntity()`를 기본으로 한다.
 - **내부는 반드시 빌더 패턴**으로 엔티티를 생성한다 (생성자 직접 호출 대신).
@@ -208,10 +168,7 @@ Service가 Response를 안다는 건 Service가 표현 데이터에 의존한다
 ## 5. 공통 응답 래퍼 `ApiResponse<T>`
 
 모든 응답 본문을 동일한 포맷으로 감싼다. (controller-test 스킬이 이 포맷을 검증한다.)
-
-```json
-{ "code": 200, "status": "OK", "message": "OK", "data": {...} }
-```
+응답 JSON 포맷 예제 → reference.md §5
 
 - 성공 응답: `ApiResponse.ok(data)` 형태의 정적 팩토리로 감싼다.
 - 실패 응답: `@RestControllerAdvice`의 `ExceptionHandler`가 동일 포맷으로 변환한다
@@ -238,30 +195,46 @@ Service가 Response를 안다는 건 Service가 표현 데이터에 의존한다
 
 ## 7. 흐름 요약 — 단방향 데이터 흐름
 
-```
-[HTTP 요청]
-   │  @Valid @RequestBody
-   ▼
-Request DTO ──(그대로 전달)──▶ Service
-                                 │  request.toEntity() (빌더로 엔티티 생성)
-                                 │  도메인/비즈니스 처리
-                                 │  Response DTO 완성
-                                 ▼
-Controller ◀──(Response 반환)── Service
-   │  ApiResponse.ok(response)        → 본문 포맷
-   │  ResponseEntity.ok(...) / .created(...)  → 상태 코드 + 헤더
-   ▼
-[HTTP 응답: status/headers + { code, status, message, data }]
-
-* 예외 발생 시: Service throw ──▶ @RestControllerAdvice ──▶ ApiResponse 에러 포맷
-```
+데이터 흐름 다이어그램 → reference.md §7
 
 이 방향을 거스르는 코드(엔티티가 Controller로 올라옴, Controller가 판단함,
 Controller가 예외를 잡음)가 보이면 잘못된 신호다.
 
 ---
 
-## 8. 작성 체크리스트
+## 8. 인프라/라이브러리 자원은 `config`에서 빈으로 분리한다
+
+`Executor`(스레드풀), HTTP/AWS 클라이언트, 외부 SDK 객체 같은 **라이브러리 자원은
+Controller가 만들지도 소유하지도 않는다.** Controller는 그저 주입받아 쓴다.
+before/after 예제 → reference.md §8
+
+### 8-1. 왜 분리하는가
+
+- **책임 위반** — Controller의 일은 HTTP 경계 변환이다. 스레드풀 크기·큐 용량·종료 처리
+  같은 인프라 설정은 그 책임이 아니다.
+- **생명주기** — `new`로 만든 자원은 누군가 닫아야 한다. Controller에 `@PreDestroy`가
+  붙기 시작하면 그건 자원을 잘못된 곳에서 소유한다는 신호다. 빈으로 등록하면 스프링이
+  생성·소멸을 관리한다(`destroyMethod`, `@PreDestroy` 모두 빈 쪽에서).
+- **재사용·테스트** — 빈으로 분리하면 여러 컴포넌트가 같은 자원을 공유하고, 테스트에서
+  쉽게 교체(mock/stub)할 수 있다.
+
+### 8-2. 규칙
+
+- 자원 생성 코드는 `config/{영역}` 패키지(예: `config/executor`)의 `@Configuration`
+  클래스로 옮기고 `@Bean` 메서드로 등록한다.
+- 종료가 필요한 자원은 빈 정의에서 생명주기를 지정한다
+  (`@Bean(destroyMethod = "shutdown")` 등). Controller는 종료에 관여하지 않는다.
+- Controller는 그 빈을 **`private final` 생성자 주입**으로 받는다 (§1의 의존성 주입 규칙과 동일).
+- 빈이 여러 개라 충돌하면 `@Qualifier`나 빈 이름으로 구분한다.
+
+### 8-3. 판단 기준
+
+> Controller에서 `new ...Executor()`, `new ...Client()` 같은 **라이브러리 객체 생성**이나
+> `@PreDestroy`/`@PostConstruct` 같은 **생명주기 콜백**이 보이면 `config`로 옮길 신호다.
+
+---
+
+## 9. 작성 체크리스트
 
 Controller 계층 코드를 작성/수정한 뒤 점검한다.
 
@@ -274,6 +247,8 @@ Controller 계층 코드를 작성/수정한 뒤 점검한다.
 - [ ] 엔티티를 반환하지 않고 `Response` DTO만 반환하는가?
 - [ ] Request를 그대로 Service에 넘기는가? (`toEntity()`를 Controller에서 호출하지 않음)
 - [ ] HTTP 매핑 축약 어노테이션과 `/api/v{n}/{resource}` 경로 컨벤션을 따르는가?
+- [ ] `Executor`·클라이언트 등 라이브러리 자원을 `new`로 만들거나 소유하지 않고, `config`의
+  빈을 주입받아 쓰는가? (`@PreDestroy`/`@PostConstruct`가 Controller에 없는가)
 
 ### Request DTO
 
