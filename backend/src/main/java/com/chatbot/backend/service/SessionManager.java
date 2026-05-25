@@ -43,7 +43,7 @@ public class SessionManager {
 
     @Transactional(readOnly = true)
     public List<Session> getByUser(String userId) {
-        return repository.findByUserIdOrderByUpdatedAtDesc(userId);
+        return repository.findAllByUserId(userId);
     }
 
     @Transactional

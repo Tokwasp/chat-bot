@@ -28,12 +28,12 @@ public class MessageHistoryService {
 
     @Transactional(readOnly = true)
     public List<Message> get(String sessionId) {
-        return repository.findBySessionIdOrderByIdAsc(sessionId);
+        return repository.findAllBySessionId(sessionId);
     }
 
     @Transactional(readOnly = true)
     public List<Message> getWithLimit(String sessionId, int limit) {
-        List<Message> messages = repository.findBySessionIdOrderByIdAsc(sessionId);
+        List<Message> messages = repository.findAllBySessionId(sessionId);
         int from = Math.max(0, messages.size() - limit);
         return new ArrayList<>(messages.subList(from, messages.size()));
     }
@@ -58,7 +58,7 @@ public class MessageHistoryService {
             return;
         }
 
-        List<Message> messages = new ArrayList<>(repository.findBySessionIdOrderByIdAsc(sessionId));
+        List<Message> messages = new ArrayList<>(repository.findAllBySessionId(sessionId));
         List<Long> toDelete = new ArrayList<>();
 
         while (messages.size() > max) {
