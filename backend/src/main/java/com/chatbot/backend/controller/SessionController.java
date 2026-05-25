@@ -5,7 +5,7 @@ import com.chatbot.backend.dto.request.CreateSessionRequest;
 import com.chatbot.backend.dto.response.MessageResponse;
 import com.chatbot.backend.dto.response.SessionResponse;
 import com.chatbot.backend.dto.request.UpdateSessionRequest;
-import com.chatbot.backend.exception.ChatbotException;
+import com.chatbot.backend.exception.SessionNotFoundException;
 import com.chatbot.backend.service.MessageHistoryService;
 import com.chatbot.backend.service.SessionManager;
 import jakarta.validation.Valid;
@@ -20,9 +20,6 @@ import java.util.List;
 @RequiredArgsConstructor
 @RequestMapping("/api/sessions")
 public class SessionController {
-
-    private static final String SESSION_NOT_FOUND_MESSAGE = "세션을 찾을 수 없습니다.";
-    private static final String SESSION_NOT_FOUND_CODE = "SESSION_NOT_FOUND";
 
     private final SessionManager sessionManager;
     private final MessageHistoryService messageHistoryService;
@@ -85,7 +82,7 @@ public class SessionController {
         sessionManager.get(id).orElseThrow(this::sessionNotFound);
     }
 
-    private ChatbotException sessionNotFound() {
-        return new ChatbotException(SESSION_NOT_FOUND_MESSAGE, HttpStatus.NOT_FOUND.value(), SESSION_NOT_FOUND_CODE);
+    private SessionNotFoundException sessionNotFound() {
+        return new SessionNotFoundException();
     }
 }
