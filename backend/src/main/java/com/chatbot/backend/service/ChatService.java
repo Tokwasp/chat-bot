@@ -2,7 +2,7 @@ package com.chatbot.backend.service;
 
 import com.chatbot.backend.config.SystemPromptConfig;
 import com.chatbot.backend.config.aws.*;
-import com.chatbot.backend.dto.ChatRequest;
+import com.chatbot.backend.dto.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
@@ -12,9 +12,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 import java.io.IOException;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 @Slf4j
 @Service
@@ -72,19 +70,19 @@ public class ChatService {
         try {
             if (event instanceof TextDeltaEvent textEvent) {
                 assistantText.append(textEvent.getText());
-                send(emitter, "text", Map.of("text", textEvent.getText()));
+                send(emitter, "text", TextResponse.from(textEvent));
                 return;
             }
             if (event instanceof ToolUseStartEvent toolEvent) {
-                send(emitter, "tool_start", toolStartPayload(toolEvent));
+                send(emitter, "tool_start", ToolStartResponse.from(toolEvent));
                 return;
             }
             if (event instanceof MessageStopEvent stopEvent) {
-                send(emitter, "done", donePayload(stopEvent));
+                send(emitter, "done", DoneResponse.from(stopEvent));
                 return;
             }
             if (event instanceof ErrorEvent errorEvent) {
-                send(emitter, "error", errorPayload(errorEvent.getMessage()));
+                send(emitter, "error", ErrorResponse.of(errorEvent.getMessage()));
             }
         } catch (IOException e) {
             log.error("Failed to send SSE event", e);
@@ -99,7 +97,7 @@ public class ChatService {
 
     private void sendError(SseEmitter emitter, String message) {
         try {
-            send(emitter, "error", errorPayload(message));
+            send(emitter, "error", ErrorResponse.of(message));
         } catch (IOException e) {
             log.error("Failed to send SSE error event", e);
         }
@@ -115,28 +113,5 @@ public class ChatService {
                         message.getRole(),
                         List.of(new ContentBlock(message.getContent()))))
                 .toList();
-    }
-
-    private Map<String, Object> toolStartPayload(ToolUseStartEvent event) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("toolUseId", event.getToolUseId());
-        data.put("toolName", event.getToolName());
-
-        return data;
-    }
-
-    private Map<String, Object> donePayload(MessageStopEvent event) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("stopReason", event.getStopReason());
-        data.put("usage", event.getUsage());
-
-        return data;
-    }
-
-    private Map<String, Object> errorPayload(String message) {
-        Map<String, Object> data = new HashMap<>();
-        data.put("message", message == null ? "" : message);
-
-        return data;
     }
 }
