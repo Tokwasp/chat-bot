@@ -46,13 +46,22 @@ public class ImageGenerationService {
             InvokeModelResponse response = bedrockRuntimeClient.invokeModel(invokeRequest);
             return extractImage(response.body().asUtf8String());
         } catch (AccessDeniedException e) {
+            log.error("Nova Canvas access denied (modelId={}): {}", imageModelId, e.getMessage());
             throw new BedrockServiceError("ACCESS_DENIED");
         } catch (ResourceNotFoundException e) {
+            log.error("Nova Canvas model not found (modelId={}): {}", imageModelId, e.getMessage());
             throw new BedrockServiceError("MODEL_NOT_FOUND");
         } catch (ThrottlingException e) {
+            log.error("Nova Canvas throttled (modelId={}): {}", imageModelId, e.getMessage());
             throw new BedrockServiceError("THROTTLING", true);
         } catch (ValidationException e) {
+            log.error("Nova Canvas validation error (modelId={}): {}", imageModelId, e.getMessage());
             throw new BedrockServiceError("INVALID_IMAGE_REQUEST");
+        } catch (BedrockServiceError e) {
+            throw e;
+        } catch (Exception e) {
+            log.error("Nova Canvas invocation failed (modelId={})", imageModelId, e);
+            throw new BedrockServiceError("IMAGE_GENERATION_FAILED");
         }
     }
 
