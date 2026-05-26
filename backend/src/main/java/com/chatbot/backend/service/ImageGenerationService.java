@@ -22,7 +22,8 @@ import software.amazon.awssdk.services.bedrockruntime.model.ValidationException;
 public class ImageGenerationService {
 
     private static final String CONTENT_TYPE = "application/json";
-    private static final int DEFAULT_SIZE = 1024;
+    private static final String DEFAULT_ASPECT_RATIO = "1:1";
+    private static final String OUTPUT_FORMAT = "png";
 
     private final BedrockRuntimeClient bedrockRuntimeClient;
     private final String imageModelId;
@@ -46,41 +47,34 @@ public class ImageGenerationService {
             InvokeModelResponse response = bedrockRuntimeClient.invokeModel(invokeRequest);
             return extractImage(response.body().asUtf8String());
         } catch (AccessDeniedException e) {
-            log.error("Nova Canvas access denied (modelId={}): {}", imageModelId, e.getMessage());
+            log.error("Image model access denied (modelId={}): {}", imageModelId, e.getMessage());
             throw new BedrockServiceError("ACCESS_DENIED");
         } catch (ResourceNotFoundException e) {
-            log.error("Nova Canvas model not found (modelId={}): {}", imageModelId, e.getMessage());
+            log.error("Image model not found (modelId={}): {}", imageModelId, e.getMessage());
             throw new BedrockServiceError("MODEL_NOT_FOUND");
         } catch (ThrottlingException e) {
-            log.error("Nova Canvas throttled (modelId={}): {}", imageModelId, e.getMessage());
+            log.error("Image model throttled (modelId={}): {}", imageModelId, e.getMessage());
             throw new BedrockServiceError("THROTTLING", true);
         } catch (ValidationException e) {
-            log.error("Nova Canvas validation error (modelId={}): {}", imageModelId, e.getMessage());
+            log.error("Image model validation error (modelId={}): {}", imageModelId, e.getMessage());
             throw new BedrockServiceError("INVALID_IMAGE_REQUEST");
         } catch (BedrockServiceError e) {
             throw e;
         } catch (Exception e) {
-            log.error("Nova Canvas invocation failed (modelId={})", imageModelId, e);
+            log.error("Image generation failed (modelId={})", imageModelId, e);
             throw new BedrockServiceError("IMAGE_GENERATION_FAILED");
         }
     }
 
     private String buildRequestBody(ImageGenerationRequest request) {
         ObjectNode root = objectMapper.createObjectNode();
-        root.put("taskType", "TEXT_IMAGE");
-
-        ObjectNode textToImageParams = root.putObject("textToImageParams");
-        textToImageParams.put("text", request.getPrompt());
+        root.put("prompt", request.getPrompt());
+        root.put("mode", "text-to-image");
+        root.put("aspect_ratio", resolveAspectRatio(request.getAspectRatio()));
+        root.put("output_format", OUTPUT_FORMAT);
         if (StringUtils.hasText(request.getNegativePrompt())) {
-            textToImageParams.put("negativeText", request.getNegativePrompt());
+            root.put("negative_prompt", request.getNegativePrompt());
         }
-
-        ObjectNode config = root.putObject("imageGenerationConfig");
-        config.put("numberOfImages", 1);
-        config.put("width", resolveSize(request.getWidth()));
-        config.put("height", resolveSize(request.getHeight()));
-        config.put("cfgScale", 8.0);
-        config.put("quality", "standard");
 
         try {
             return objectMapper.writeValueAsString(root);
@@ -89,29 +83,33 @@ public class ImageGenerationService {
         }
     }
 
-    private int resolveSize(Integer size) {
-        return size == null ? DEFAULT_SIZE : size;
+    private String resolveAspectRatio(String aspectRatio) {
+        return StringUtils.hasText(aspectRatio) ? aspectRatio : DEFAULT_ASPECT_RATIO;
     }
 
     private String extractImage(String responseBody) {
         try {
             JsonNode root = objectMapper.readTree(responseBody);
-            JsonNode error = root.get("error");
-            if (error != null && !error.isNull() && StringUtils.hasText(error.asText())) {
-                log.error("Nova Canvas returned an error: {}", error.asText());
-                throw new BedrockServiceError("IMAGE_GENERATION_FAILED");
+
+            JsonNode finishReasons = root.get("finish_reasons");
+            if (finishReasons != null && finishReasons.isArray() && !finishReasons.isEmpty()) {
+                JsonNode firstReason = finishReasons.get(0);
+                if (firstReason != null && !firstReason.isNull() && StringUtils.hasText(firstReason.asText())) {
+                    log.error("Image generation blocked: {}", firstReason.asText());
+                    throw new BedrockServiceError("IMAGE_GENERATION_FAILED");
+                }
             }
 
             JsonNode images = root.get("images");
             if (images == null || !images.isArray() || images.isEmpty()) {
-                log.error("Nova Canvas response did not contain any image");
+                log.error("Image model response did not contain any image");
                 throw new BedrockServiceError("IMAGE_GENERATION_FAILED");
             }
             return images.get(0).asText();
         } catch (BedrockServiceError e) {
             throw e;
         } catch (Exception e) {
-            log.error("Failed to parse Nova Canvas response", e);
+            log.error("Failed to parse image model response", e);
             throw new BedrockServiceError("IMAGE_GENERATION_FAILED");
         }
     }

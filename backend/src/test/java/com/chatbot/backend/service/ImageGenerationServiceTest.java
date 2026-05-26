@@ -38,9 +38,9 @@ class ImageGenerationServiceTest {
     }
 
     @Test
-    @DisplayName("프롬프트로 이미지 생성을 요청하면 Nova Canvas 응답의 base64 이미지를 반환한다")
+    @DisplayName("프롬프트로 이미지 생성을 요청하면 응답의 base64 이미지를 반환한다")
     void whenPromptProvided_thenReturnBase64Image() {
-        mockInvokeModel("{\"images\":[\"BASE64_IMAGE_DATA\"],\"error\":null}");
+        mockInvokeModel("{\"images\":[\"BASE64_IMAGE_DATA\"],\"finish_reasons\":[null]}");
 
         String image = imageGenerationService.generate(buildRequest("귀여운 로봇"));
 
@@ -48,9 +48,9 @@ class ImageGenerationServiceTest {
     }
 
     @Test
-    @DisplayName("요청 본문에 taskType과 프롬프트, 기본 이미지 크기(1024)가 포함된다")
-    void whenGenerate_thenRequestBodyContainsTaskTypeAndPrompt() throws Exception {
-        mockInvokeModel("{\"images\":[\"BASE64\"]}");
+    @DisplayName("요청 본문에 prompt, mode(text-to-image), 기본 aspect_ratio(1:1), output_format(png)이 포함된다")
+    void whenGenerate_thenRequestBodyContainsStabilityParams() throws Exception {
+        mockInvokeModel("{\"images\":[\"BASE64\"],\"finish_reasons\":[null]}");
 
         ArgumentCaptor<InvokeModelRequest> captor = ArgumentCaptor.forClass(InvokeModelRequest.class);
         imageGenerationService.generate(buildRequest("바다 풍경"));
@@ -60,16 +60,33 @@ class ImageGenerationServiceTest {
         assertThat(sent.modelId()).isEqualTo(MODEL_ID);
 
         JsonNode body = objectMapper.readTree(sent.body().asUtf8String());
-        assertThat(body.get("taskType").asText()).isEqualTo("TEXT_IMAGE");
-        assertThat(body.get("textToImageParams").get("text").asText()).isEqualTo("바다 풍경");
-        assertThat(body.get("imageGenerationConfig").get("width").asInt()).isEqualTo(1024);
-        assertThat(body.get("imageGenerationConfig").get("height").asInt()).isEqualTo(1024);
+        assertThat(body.get("prompt").asText()).isEqualTo("바다 풍경");
+        assertThat(body.get("mode").asText()).isEqualTo("text-to-image");
+        assertThat(body.get("aspect_ratio").asText()).isEqualTo("1:1");
+        assertThat(body.get("output_format").asText()).isEqualTo("png");
     }
 
     @Test
-    @DisplayName("negativePrompt가 주어지면 요청 본문에 negativeText로 포함된다")
-    void whenNegativePromptProvided_thenIncludedAsNegativeText() throws Exception {
-        mockInvokeModel("{\"images\":[\"BASE64\"]}");
+    @DisplayName("aspectRatio가 주어지면 요청 본문의 aspect_ratio에 반영된다")
+    void whenAspectRatioProvided_thenIncludedInBody() throws Exception {
+        mockInvokeModel("{\"images\":[\"BASE64\"],\"finish_reasons\":[null]}");
+
+        ArgumentCaptor<InvokeModelRequest> captor = ArgumentCaptor.forClass(InvokeModelRequest.class);
+        ImageGenerationRequest request = ImageGenerationRequest.builder()
+                .prompt("도시 야경")
+                .aspectRatio("16:9")
+                .build();
+        imageGenerationService.generate(request);
+
+        org.mockito.Mockito.verify(bedrockRuntimeClient).invokeModel(captor.capture());
+        JsonNode body = objectMapper.readTree(captor.getValue().body().asUtf8String());
+        assertThat(body.get("aspect_ratio").asText()).isEqualTo("16:9");
+    }
+
+    @Test
+    @DisplayName("negativePrompt가 주어지면 요청 본문에 negative_prompt로 포함된다")
+    void whenNegativePromptProvided_thenIncludedAsNegativePrompt() throws Exception {
+        mockInvokeModel("{\"images\":[\"BASE64\"],\"finish_reasons\":[null]}");
 
         ArgumentCaptor<InvokeModelRequest> captor = ArgumentCaptor.forClass(InvokeModelRequest.class);
         ImageGenerationRequest request = ImageGenerationRequest.builder()
@@ -80,13 +97,13 @@ class ImageGenerationServiceTest {
 
         org.mockito.Mockito.verify(bedrockRuntimeClient).invokeModel(captor.capture());
         JsonNode body = objectMapper.readTree(captor.getValue().body().asUtf8String());
-        assertThat(body.get("textToImageParams").get("negativeText").asText()).isEqualTo("사람, 글자");
+        assertThat(body.get("negative_prompt").asText()).isEqualTo("사람, 글자");
     }
 
     @Test
     @DisplayName("응답에 images 배열이 비어 있으면 BedrockServiceError(IMAGE_GENERATION_FAILED)를 던진다")
     void whenNoImagesInResponse_thenThrowError() {
-        mockInvokeModel("{\"images\":[]}");
+        mockInvokeModel("{\"images\":[],\"finish_reasons\":[null]}");
 
         assertThatThrownBy(() -> imageGenerationService.generate(buildRequest("테스트")))
                 .isInstanceOf(BedrockServiceError.class)
@@ -94,9 +111,9 @@ class ImageGenerationServiceTest {
     }
 
     @Test
-    @DisplayName("응답에 error 필드가 있으면 BedrockServiceError(IMAGE_GENERATION_FAILED)를 던진다")
-    void whenResponseHasError_thenThrowError() {
-        mockInvokeModel("{\"images\":null,\"error\":\"content filtered\"}");
+    @DisplayName("finish_reasons에 필터 사유가 있으면 BedrockServiceError(IMAGE_GENERATION_FAILED)를 던진다")
+    void whenFinishReasonPresent_thenThrowError() {
+        mockInvokeModel("{\"images\":[\"BASE64\"],\"finish_reasons\":[\"Filter reason: prompt\"]}");
 
         assertThatThrownBy(() -> imageGenerationService.generate(buildRequest("테스트")))
                 .isInstanceOf(BedrockServiceError.class)
