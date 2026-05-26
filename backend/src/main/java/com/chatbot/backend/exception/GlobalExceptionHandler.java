@@ -1,6 +1,7 @@
 package com.chatbot.backend.exception;
 
 import com.chatbot.backend.dto.response.ApiResponse;
+import com.chatbot.backend.service.BedrockServiceError;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
@@ -28,6 +29,13 @@ public class GlobalExceptionHandler {
                 .map(FieldError::getDefaultMessage)
                 .orElse(ErrorCode.INVALID_REQUEST.getMessage());
         return build(ErrorCode.INVALID_REQUEST.getStatus(), ErrorCode.INVALID_REQUEST.name(), message);
+    }
+
+    @ExceptionHandler(BedrockServiceError.class)
+    public ResponseEntity<ApiResponse<Void>> handleBedrockServiceError(BedrockServiceError e) {
+        log.error("Bedrock service error [{}], retryable={}", e.getMessage(), e.isRetryable());
+        ErrorCode errorCode = ErrorCode.IMAGE_GENERATION_FAILED;
+        return build(errorCode.getStatus(), errorCode.name(), errorCode.getMessage());
     }
 
     @ExceptionHandler(DataAccessException.class)
