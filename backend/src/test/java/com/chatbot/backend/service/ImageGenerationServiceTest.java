@@ -34,7 +34,7 @@ class ImageGenerationServiceTest {
     void setUp() {
         bedrockRuntimeClient = mock(BedrockRuntimeClient.class);
         objectMapper = new ObjectMapper();
-        imageGenerationService = new ImageGenerationService(bedrockRuntimeClient, MODEL_ID, objectMapper);
+        imageGenerationService = new ImageGenerationService(bedrockRuntimeClient, MODEL_ID);
     }
 
     @Test

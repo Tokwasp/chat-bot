@@ -26,14 +26,12 @@ public class ImageGenerationService {
 
     private final BedrockRuntimeClient bedrockRuntimeClient;
     private final String imageModelId;
-    private final ObjectMapper objectMapper;
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     public ImageGenerationService(BedrockRuntimeClient bedrockRuntimeClient,
-                                  @Value("${aws.bedrock.image-model-id}") String imageModelId,
-                                  ObjectMapper objectMapper) {
+                                  @Value("${aws.bedrock.image-model-id}") String imageModelId) {
         this.bedrockRuntimeClient = bedrockRuntimeClient;
         this.imageModelId = imageModelId;
-        this.objectMapper = objectMapper;
     }
 
     public String generate(ImageGenerationRequest request) {
