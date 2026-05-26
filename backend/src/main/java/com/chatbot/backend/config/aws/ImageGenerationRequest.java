@@ -8,9 +8,6 @@ import lombok.Getter;
 public class ImageGenerationRequest {
     private final String prompt;
     private final String negativePrompt;
-    private final Integer width;
-    private final Integer height;
-    private final Integer cfgScale;
-    private final Integer steps;
+    private final String aspectRatio;
     private final Long seed;
 }

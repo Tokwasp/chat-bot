@@ -17,9 +17,6 @@ public class ImageGenerationRequest {
     private String prompt;
 
     private String negativePrompt;
-    private Integer width;
-    private Integer height;
-    private Integer cfgScale;
-    private Integer steps;
+    private String aspectRatio;
     private Long seed;
 }

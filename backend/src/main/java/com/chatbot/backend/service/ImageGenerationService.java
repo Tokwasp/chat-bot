@@ -4,7 +4,6 @@ import com.chatbot.backend.config.aws.ImageGenerationRequest;
 import com.chatbot.backend.config.aws.ImageGenerationResult;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
@@ -19,9 +18,9 @@ import software.amazon.awssdk.services.bedrockruntime.model.*;
 public class ImageGenerationService {
 
     private static final String MIME_TYPE = "image/png";
-    private static final int DEFAULT_DIMENSION = 1024;
-    private static final int DEFAULT_CFG_SCALE = 7;
-    private static final int DEFAULT_STEPS = 30;
+    private static final String OUTPUT_FORMAT = "png";
+    private static final String MODE = "text-to-image";
+    private static final String DEFAULT_ASPECT_RATIO = "1:1";
 
     private final BedrockRuntimeClient bedrockRuntimeClient;
     private final ObjectMapper objectMapper;
@@ -29,7 +28,7 @@ public class ImageGenerationService {
 
     public ImageGenerationService(BedrockRuntimeClient bedrockRuntimeClient,
                                   ObjectMapper objectMapper,
-                                  @Value("${aws.bedrock.image-model-id:stability.stable-diffusion-xl-v1}") String imageModelId) {
+                                  @Value("${aws.bedrock.image-model-id:stability.stable-image-core-v1:1}") String imageModelId) {
         this.bedrockRuntimeClient = bedrockRuntimeClient;
         this.objectMapper = objectMapper;
         this.imageModelId = imageModelId;
@@ -52,6 +51,9 @@ public class ImageGenerationService {
             throw new BedrockServiceError("ACCESS_DENIED");
         } catch (ResourceNotFoundException e) {
             throw new BedrockServiceError("MODEL_NOT_FOUND");
+        } catch (ValidationException e) {
+            log.error("Invalid Bedrock image request (modelId={}): {}", imageModelId, e.getMessage());
+            throw new BedrockServiceError("INVALID_MODEL_OR_REQUEST");
         } catch (ThrottlingException e) {
             throw new BedrockServiceError("THROTTLING", true);
         }
@@ -59,21 +61,14 @@ public class ImageGenerationService {
 
     private String buildRequestBody(ImageGenerationRequest request) {
         ObjectNode root = objectMapper.createObjectNode();
-
-        ArrayNode textPrompts = root.putArray("text_prompts");
-        textPrompts.addObject()
-                .put("text", request.getPrompt())
-                .put("weight", 1.0);
+        root.put("prompt", request.getPrompt());
+        root.put("mode", MODE);
+        root.put("output_format", OUTPUT_FORMAT);
+        root.put("aspect_ratio",
+                StringUtils.hasText(request.getAspectRatio()) ? request.getAspectRatio() : DEFAULT_ASPECT_RATIO);
         if (StringUtils.hasText(request.getNegativePrompt())) {
-            textPrompts.addObject()
-                    .put("text", request.getNegativePrompt())
-                    .put("weight", -1.0);
+            root.put("negative_prompt", request.getNegativePrompt());
         }
-
-        root.put("cfg_scale", orDefault(request.getCfgScale(), DEFAULT_CFG_SCALE));
-        root.put("steps", orDefault(request.getSteps(), DEFAULT_STEPS));
-        root.put("width", orDefault(request.getWidth(), DEFAULT_DIMENSION));
-        root.put("height", orDefault(request.getHeight(), DEFAULT_DIMENSION));
         if (request.getSeed() != null) {
             root.put("seed", request.getSeed());
         }
@@ -88,26 +83,20 @@ public class ImageGenerationService {
     private ImageGenerationResult parseResult(InvokeModelResponse response) {
         JsonNode root = readBody(response);
 
-        JsonNode artifacts = root.path("artifacts");
-        if (!artifacts.isArray() || artifacts.isEmpty()) {
-            log.error("Bedrock image response has no artifacts: {}", root.path("result").asText());
+        JsonNode images = root.path("images");
+        if (!images.isArray() || images.isEmpty()) {
+            log.error("Bedrock image response has no images");
             throw new BedrockServiceError("EMPTY_RESPONSE");
         }
 
-        JsonNode artifact = artifacts.get(0);
-        String finishReason = artifact.path("finishReason").asText("SUCCESS");
-        if ("CONTENT_FILTERED".equals(finishReason)) {
+        JsonNode finishReason = root.path("finish_reasons").path(0);
+        if (finishReason.isTextual() && StringUtils.hasText(finishReason.asText())) {
+            log.error("Bedrock image generation filtered/failed: {}", finishReason.asText());
             throw new BedrockServiceError("CONTENT_FILTERED");
         }
-        if (!"SUCCESS".equals(finishReason)) {
-            log.error("Bedrock image generation finished with reason: {}", finishReason);
-            throw new BedrockServiceError("GENERATION_FAILED");
-        }
 
-        return new ImageGenerationResult(
-                artifact.path("base64").asText(),
-                artifact.path("seed").asLong(),
-                MIME_TYPE);
+        Long seed = root.path("seeds").path(0).isNumber() ? root.path("seeds").path(0).asLong() : null;
+        return new ImageGenerationResult(images.get(0).asText(), seed, MIME_TYPE);
     }
 
     private JsonNode readBody(InvokeModelResponse response) {
@@ -116,9 +105,5 @@ public class ImageGenerationService {
         } catch (Exception e) {
             throw new BedrockServiceError("INVALID_RESPONSE");
         }
-    }
-
-    private int orDefault(Integer value, int defaultValue) {
-        return value != null ? value : defaultValue;
     }
 }

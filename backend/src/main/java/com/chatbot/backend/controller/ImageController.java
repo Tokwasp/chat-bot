@@ -30,10 +30,7 @@ public class ImageController {
         return new com.chatbot.backend.config.aws.ImageGenerationRequest(
                 request.getPrompt(),
                 request.getNegativePrompt(),
-                request.getWidth(),
-                request.getHeight(),
-                request.getCfgScale(),
-                request.getSteps(),
+                request.getAspectRatio(),
                 request.getSeed());
     }
 }
