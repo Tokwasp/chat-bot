@@ -2,6 +2,9 @@ package com.chatbot.backend.controller;
 
 import com.chatbot.backend.dto.response.Text2SqlResponse;
 import com.chatbot.backend.service.Text2SqlService;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.List;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -56,11 +59,14 @@ class Text2SqlControllerTest {
     }
 
     @Test
-    @DisplayName("정상 요청이면 200과 함께 intent, entities, sql 3단계 결과를 반환한다")
-    void generate_WhenValidRequest_ThenReturnsThreeStepResult() throws Exception {
+    @DisplayName("정상 요청이면 200과 함께 파싱된 intent/entities 객체, sql 문자열, params 배열을 반환한다")
+    void generate_WhenValidRequest_ThenReturnsParsedResult() throws Exception {
         //given
+        ObjectMapper mapper = new ObjectMapper();
+        JsonNode intent = mapper.readTree("{\"intent\":\"LIST_TRANSACTIONS\"}");
+        JsonNode entities = mapper.readTree("{\"period_code\":\"LAST_1_MONTH\"}");
         when(text2SqlService.generate(anyString()))
-            .thenReturn(new Text2SqlResponse("거래내역 조회", "기간: 지난달", "SELECT * FROM transactions"));
+            .thenReturn(new Text2SqlResponse(intent, entities, "SELECT * FROM transactions", List.of("userId")));
         String body = "{\"question\":\"지난달 거래 내역 보여줘\"}";
 
         //when //then
@@ -69,8 +75,9 @@ class Text2SqlControllerTest {
                 .content(body))
             .andExpect(status().isOk())
             .andExpect(jsonPath("$.code").value(200))
-            .andExpect(jsonPath("$.data.intent").value("거래내역 조회"))
-            .andExpect(jsonPath("$.data.entities").value("기간: 지난달"))
-            .andExpect(jsonPath("$.data.sql").value("SELECT * FROM transactions"));
+            .andExpect(jsonPath("$.data.intent.intent").value("LIST_TRANSACTIONS"))
+            .andExpect(jsonPath("$.data.entities.period_code").value("LAST_1_MONTH"))
+            .andExpect(jsonPath("$.data.sql").value("SELECT * FROM transactions"))
+            .andExpect(jsonPath("$.data.params[0]").value("userId"));
     }
 }

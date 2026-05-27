@@ -1,11 +1,13 @@
 package com.chatbot.backend.service;
 
 import com.chatbot.backend.config.Text2SqlPrompts;
-import com.chatbot.backend.config.aws.ContentBlock;
-import com.chatbot.backend.config.aws.ConversationRequest;
-import com.chatbot.backend.config.aws.ConversationResponse;
-import com.chatbot.backend.config.aws.Message;
+import com.chatbot.backend.config.aws.*;
 import com.chatbot.backend.dto.response.Text2SqlResponse;
+import com.chatbot.backend.exception.LlmResponseParseException;
+import com.chatbot.backend.util.LlmJson;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 
@@ -16,19 +18,41 @@ import java.util.List;
 public class Text2SqlServiceImpl implements Text2SqlService {
 
     private final BedrockService bedrockService;
+    private final ObjectMapper objectMapper;
 
     @Override
     public Text2SqlResponse generate(String question) {
-        String intent = ask(Text2SqlPrompts.INTENT_CLASSIFICATION_PROMPT,
+        String rawIntent = ask(Text2SqlPrompts.INTENT_CLASSIFICATION_PROMPT,
                 "질문: " + question);
 
-        String entities = ask(Text2SqlPrompts.ENTITY_EXTRACTION_PROMPT,
-                "질문: " + question + "\n의도: " + intent);
+        String rawEntities = ask(Text2SqlPrompts.ENTITY_EXTRACTION_PROMPT,
+                "질문: " + question + "\n의도: " + rawIntent);
 
-        String sql = ask(Text2SqlPrompts.SQL_GENERATION_PROMPT,
-                "질문: " + question + "\n의도: " + intent + "\nEntity: " + entities);
+        String rawSql = ask(Text2SqlPrompts.SQL_GENERATION_PROMPT,
+                "질문: " + question + "\n의도: " + rawIntent + "\nEntity: " + rawEntities);
 
-        return new Text2SqlResponse(intent, entities, sql);
+        JsonNode intent = LlmJson.parse(rawIntent, objectMapper);
+        JsonNode entities = LlmJson.parse(rawEntities, objectMapper);
+        JsonNode sqlNode = LlmJson.parse(rawSql, objectMapper);
+
+        return new Text2SqlResponse(intent, entities, extractSql(sqlNode), extractParams(sqlNode));
+    }
+
+    private String extractSql(JsonNode sqlNode) {
+        JsonNode sql = sqlNode.get("sql");
+        if (sql == null || !sql.isTextual()) {
+            throw new LlmResponseParseException();
+        }
+        return sql.asText();
+    }
+
+    private List<String> extractParams(JsonNode sqlNode) {
+        JsonNode params = sqlNode.get("params");
+        if (params == null || params.isNull()) {
+            return List.of();
+        }
+        return objectMapper.convertValue(params, new TypeReference<List<String>>() {
+        });
     }
 
     private String ask(String systemPrompt, String userText) {
