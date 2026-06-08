@@ -76,8 +76,8 @@ arrow(ax, CX - 0.04, 0.80, CX - 0.04, 0.72, 'POST /api/chat  (SSE)', color=C_SSE
 arrow(ax, CX + 0.04, 0.80, CX + 0.04, 0.72, '/api/sessions/**  (REST)', color=C_CLIENT)
 # Spring Boot → Bedrock
 arrow(ax, CX, 0.62, CX, 0.54, 'ConverseStream API', color=C_AWS, lw=2)
-# Spring Boot → DB
-arrow(ax, CX + 0.22, 0.66, CX + 0.22, 0.32, 'JPA', color=C_DB, lw=1.8, dashed=True)
+# Spring Boot → DB (라벨 없이)
+arrow(ax, CX + 0.22, 0.66, CX + 0.22, 0.32, '', color=C_DB, lw=1.8, dashed=True)
 
 # ── 범례 ───────────────────────────────────────────────────
 ax.plot([0.05, 0.12], [0.13, 0.13], color=C_SSE, lw=2.5)
@@ -85,7 +85,7 @@ ax.text(0.13, 0.13, ' SSE 스트리밍', va='center', fontsize=9, color=C_SSE)
 ax.plot([0.05, 0.12], [0.08, 0.08], color=C_CLIENT, lw=2)
 ax.text(0.13, 0.08, ' REST API', va='center', fontsize=9, color=C_CLIENT)
 ax.plot([0.05, 0.12], [0.03, 0.03], color=C_DB, lw=2, linestyle='--')
-ax.text(0.13, 0.03, ' DB 저장', va='center', fontsize=9, color=C_DB)
+ax.text(0.13, 0.03, ' DB', va='center', fontsize=9, color=C_DB)
 
 plt.tight_layout()
 plt.savefig('/home/user/chat-bot/docs/architecture.png', dpi=150, bbox_inches='tight',
@@ -172,10 +172,17 @@ ax.annotate('', xy=(CX, 0.15), xytext=(CX, 0.76),
 ax.text(CX - 0.06, 0.45, 'SSE\n연결\n유지', ha='center', va='center',
         fontsize=7.5, color=C_SSE, rotation=90)
 
-ax.plot([0.0, 0.1], [0.16, 0.16], color=C_SSE, lw=2); ax.text(0.12, 0.16, 'SSE 스트리밍', va='center', fontsize=8, color=C_SSE)
-ax.plot([0.3, 0.4], [0.16, 0.16], color=C_SPRING, lw=2); ax.text(0.42, 0.16, '내부 호출', va='center', fontsize=8, color=C_SPRING)
-ax.plot([0.55, 0.65], [0.16, 0.16], color=C_ARROW, lw=2, linestyle='--'); ax.text(0.67, 0.16, '반환/응답', va='center', fontsize=8, color=C_ARROW)
-ax.plot([0.80, 0.90], [0.16, 0.16], color=C_DB, lw=2); ax.text(0.92, 0.16, 'DB 저장', va='center', fontsize=8, color=C_DB)
+legend_items = [
+    (C_SSE,    False, 'SSE 스트리밍'),
+    (C_SPRING, False, '내부 호출'),
+    (C_ARROW,  True,  '반환/응답'),
+    (C_DB,     False, 'DB 저장'),
+]
+for i, (lc, ldash, lt) in enumerate(legend_items):
+    lx, ly = 0.60 + (i % 2) * 0.22, 0.13 - (i // 2) * 0.06
+    ax.plot([lx, lx + 0.06], [ly, ly], color=lc, lw=2,
+            linestyle='--' if ldash else '-')
+    ax.text(lx + 0.07, ly, lt, va='center', fontsize=8, color=lc)
 
 plt.tight_layout()
 plt.savefig('/home/user/chat-bot/docs/sequence.png', dpi=150, bbox_inches='tight',
